@@ -17,7 +17,7 @@ export function HeroSection() {
           <div className="space-y-8 animate-fade-in">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/20 border border-accent/30">
               <span className="w-2 h-2 bg-accent rounded-full animate-pulse" />
-              <span className="text-sm font-medium">Now Enrolling for 2025</span>
+              <span className="text-sm font-medium">Now Enrolling for 2026</span>
             </div>
 
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold leading-tight">
