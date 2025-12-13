@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Mail, Phone, MapPin, Facebook, Twitter, Linkedin, Instagram } from 'lucide-react';
 import ccpqLogo from '@/assets/ccpq-logo.png';
+import accreditationBadge from '@/assets/ccpq-accreditation.png';
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
@@ -8,6 +9,15 @@ export function Footer() {
   return (
     <footer className="bg-primary text-primary-foreground">
       <div className="container-custom py-12 md:py-16">
+        {/* Accreditation Badge */}
+        <div className="flex justify-end mb-8">
+          <img 
+            src={accreditationBadge} 
+            alt="CPD Quality Standards, QCTO, and Central Supplier Database Accreditation" 
+            className="h-16 md:h-20 w-auto bg-white rounded-lg p-2"
+          />
+        </div>
+        
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Logo & About */}
           <div className="space-y-4">
