@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Mail, Phone, MapPin, Facebook, Twitter, Linkedin, Instagram } from 'lucide-react';
-import ccpqLogo from '@/assets/ccpq-logo.png';
+import ccpqLogo from '@/assets/ccpq-logo-new.png';
 import accreditationBadge from '@/assets/ccpq-accreditation.png';
 
 export function Footer() {
@@ -21,7 +21,7 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Logo & About */}
           <div className="space-y-4">
-            <img src={ccpqLogo} alt="CCPQ Logo" className="h-12 w-auto brightness-0 invert" />
+            <img src={ccpqLogo} alt="CCPQ Logo" className="h-12 w-auto bg-white rounded-lg p-1" />
             <p className="text-sm text-primary-foreground/80">
               Centre for Certified Professional Qualifications. Empowering your future through accessible online learning.
             </p>

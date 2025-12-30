@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Menu, X, User, LogOut, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import ccpqLogo from '@/assets/ccpq-logo.png';
+import ccpqLogo from '@/assets/ccpq-logo-new.png';
 import {
   DropdownMenu,
   DropdownMenuContent,
