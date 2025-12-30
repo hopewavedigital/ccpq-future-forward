@@ -1,11 +1,13 @@
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useCourse } from '@/hooks/useCourses';
-import { useEnrollment, useEnroll } from '@/hooks/useEnrollments';
+import { useEnrollment } from '@/hooks/useEnrollments';
 import { useAuth } from '@/contexts/AuthContext';
-import { Clock, Tag, Check, ArrowRight, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Clock, Tag, Check, ArrowRight, Loader2, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
 
 const CourseDetail = () => {
@@ -13,20 +15,46 @@ const CourseDetail = () => {
   const { data: course, isLoading } = useCourse(slug || '');
   const { user } = useAuth();
   const { data: enrollment } = useEnrollment(course?.id || '');
-  const enrollMutation = useEnroll();
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const handleEnroll = async () => {
-    if (!user) {
-      toast.error('Please sign in to enroll');
-      return;
-    }
+  const handlePayPalCheckout = async () => {
     if (!course) return;
 
+    setIsProcessing(true);
     try {
-      await enrollMutation.mutateAsync(course.id);
-      toast.success('Successfully enrolled!');
-    } catch {
-      toast.error('Failed to enroll');
+      const returnUrl = `${window.location.origin}/payment-success?course=${course.slug}`;
+      const cancelUrl = `${window.location.origin}/courses/${course.slug}`;
+
+      const { data, error } = await supabase.functions.invoke('create-paypal-order', {
+        body: {
+          courseId: course.id,
+          courseTitle: course.title,
+          amount: course.price,
+          returnUrl,
+          cancelUrl,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.approvalUrl) {
+        // Store order info for later
+        sessionStorage.setItem('pendingOrder', JSON.stringify({
+          orderId: data.orderId,
+          courseId: course.id,
+          courseSlug: course.slug,
+        }));
+        
+        // Redirect to PayPal
+        window.location.href = data.approvalUrl;
+      } else {
+        throw new Error('No approval URL received');
+      }
+    } catch (error) {
+      console.error('PayPal checkout error:', error);
+      toast.error('Failed to initiate payment. Please try again.');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -59,7 +87,7 @@ const CourseDetail = () => {
         <div className="container-custom">
           <div className="max-w-3xl">
             <Badge className={course.course_type === 'diploma' ? 'bg-accent mb-4' : 'mb-4'}>
-              {course.course_type === 'diploma' ? 'Diploma' : 'Short Course'}
+              {course.course_type === 'diploma' ? 'Diploma' : 'Certificate Course'}
             </Badge>
             <h1 className="text-3xl md:text-4xl font-display font-bold mb-4">{course.title}</h1>
             <p className="text-lg text-primary-foreground/80 mb-6">{course.short_description}</p>
@@ -92,7 +120,8 @@ const CourseDetail = () => {
 
             <div>
               <div className="bg-card p-6 rounded-xl shadow-card sticky top-24">
-                <div className="text-3xl font-display font-bold text-foreground mb-4">{formatPrice(course.price)}</div>
+                <div className="text-3xl font-display font-bold text-foreground mb-2">{formatPrice(course.price)}</div>
+                <p className="text-sm text-muted-foreground mb-4">Secure payment via PayPal</p>
                 
                 {enrollment ? (
                   <Link to={`/learn/${course.slug}`}>
@@ -100,21 +129,52 @@ const CourseDetail = () => {
                       Continue Learning <ArrowRight className="h-4 w-4" />
                     </Button>
                   </Link>
-                ) : user ? (
-                  <Button onClick={handleEnroll} disabled={enrollMutation.isPending} className="w-full bg-accent hover:bg-accent/90">
-                    {enrollMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Enroll Now'}
-                  </Button>
                 ) : (
-                  <Link to="/auth?mode=signup">
-                    <Button className="w-full bg-accent hover:bg-accent/90">Register to Enroll</Button>
-                  </Link>
+                  <>
+                    <Button 
+                      onClick={handlePayPalCheckout} 
+                      disabled={isProcessing} 
+                      className="w-full bg-[#0070ba] hover:bg-[#005ea6] text-white gap-2"
+                    >
+                      {isProcessing ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <CreditCard className="h-4 w-4" />
+                          Pay with PayPal
+                        </>
+                      )}
+                    </Button>
+                    
+                    {!user && (
+                      <p className="text-xs text-muted-foreground mt-3 text-center">
+                        You'll be asked to create an account after payment
+                      </p>
+                    )}
+                  </>
                 )}
 
-                {course.payment_link && (
-                  <a href={course.payment_link} target="_blank" rel="noopener noreferrer" className="block mt-3">
-                    <Button variant="outline" className="w-full">Make Payment</Button>
-                  </a>
-                )}
+                <div className="mt-6 pt-6 border-t border-border">
+                  <h4 className="font-semibold mb-3">This course includes:</h4>
+                  <ul className="space-y-2 text-sm text-muted-foreground">
+                    <li className="flex items-center gap-2">
+                      <Check className="h-4 w-4 text-accent" />
+                      Full online access
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="h-4 w-4 text-accent" />
+                      Certificate on completion
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="h-4 w-4 text-accent" />
+                      Study at your own pace
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="h-4 w-4 text-accent" />
+                      Student support
+                    </li>
+                  </ul>
+                </div>
               </div>
             </div>
           </div>
