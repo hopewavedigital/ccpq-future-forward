@@ -26,7 +26,7 @@ export function HeroSection() {
             </h1>
 
             <p className="text-lg md:text-xl text-primary-foreground/80 max-w-xl">
-              Flexible, affordable, industry-aligned online diploma programmes and short courses designed for South African professionals.
+              Designed for working professionals and anyone wishing to advance their careers.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4">
@@ -37,7 +37,7 @@ export function HeroSection() {
                 </Button>
               </Link>
               <Link to="/auth?mode=signup">
-                <Button size="lg" variant="outline" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 gap-2 w-full sm:w-auto">
+                <Button size="lg" variant="outline" className="border-primary-foreground text-primary-foreground bg-primary-foreground/10 hover:bg-primary-foreground/20 gap-2 w-full sm:w-auto">
                   <Play className="h-5 w-5" />
                   Register Now
                 </Button>

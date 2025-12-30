@@ -14,7 +14,7 @@ const features = [
   {
     icon: Wallet,
     title: 'Affordable Pricing',
-    description: 'Quality education at competitive prices with flexible payment options.',
+    description: 'Affordable courses for everyone everywhere!',
   },
   {
     icon: Headphones,

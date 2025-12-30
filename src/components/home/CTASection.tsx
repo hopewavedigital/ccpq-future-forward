@@ -44,12 +44,8 @@ export function CTASection() {
             {/* Pricing Highlight */}
             <div className="mt-10 flex flex-wrap justify-center gap-8">
               <div className="text-center">
-                <div className="text-2xl font-display font-bold text-primary-foreground">R4,999</div>
-                <div className="text-sm text-primary-foreground/70">Diploma Programmes</div>
-              </div>
-              <div className="text-center">
                 <div className="text-2xl font-display font-bold text-primary-foreground">R2,999</div>
-                <div className="text-sm text-primary-foreground/70">Short Courses</div>
+                <div className="text-sm text-primary-foreground/70">Certificate Courses: 1 week to 3 months</div>
               </div>
             </div>
           </div>
