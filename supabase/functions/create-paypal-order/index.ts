@@ -53,15 +53,20 @@ serve(async (req) => {
 
     const accessToken = await getAccessToken();
 
+    // Convert ZAR to USD (approximate rate - in production use real-time rates)
+    // PayPal sandbox doesn't support ZAR, so we use USD
+    const zarToUsdRate = 0.055; // Approximate rate
+    const usdAmount = (amount * zarToUsdRate).toFixed(2);
+
     const orderPayload = {
       intent: "CAPTURE",
       purchase_units: [
         {
           reference_id: courseId,
-          description: courseTitle,
+          description: `${courseTitle} (R${amount} ZAR)`,
           amount: {
-            currency_code: "ZAR",
-            value: amount.toFixed(2),
+            currency_code: "USD",
+            value: usdAmount,
           },
         },
       ],
