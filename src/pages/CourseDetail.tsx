@@ -105,8 +105,19 @@ const CourseDetail = () => {
         <div className="container-custom">
           <div className="grid lg:grid-cols-3 gap-12">
             <div className="lg:col-span-2">
+              {/* Course Image */}
+              {(course.image_url || getCourseImage(course.category?.slug)) && (
+                <div className="mb-8 rounded-xl overflow-hidden">
+                  <img 
+                    src={course.image_url || getCourseImage(course.category?.slug)} 
+                    alt={course.title}
+                    className="w-full h-64 md:h-80 object-cover"
+                  />
+                </div>
+              )}
+              
               <h2 className="text-2xl font-display font-bold mb-4">About This Course</h2>
-              <p className="text-muted-foreground mb-8">{course.description}</p>
+              <div className="text-muted-foreground mb-8 whitespace-pre-line">{course.description}</div>
               
               <h3 className="text-xl font-display font-bold mb-4">What You'll Learn</h3>
               <ul className="space-y-3 mb-8">
@@ -183,5 +194,22 @@ const CourseDetail = () => {
     </Layout>
   );
 };
+
+function getCourseImage(slug?: string): string {
+  const images: Record<string, string> = {
+    'business-management': 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    'hr-administration': 'https://images.unsplash.com/photo-1521737711867-e3b97375f902?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    'it-technology': 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    'healthcare-support': 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    'marketing-sales': 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    'education-training': 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    'hospitality-tourism': 'https://images.unsplash.com/photo-1566073771259-6a8506099945?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    'beauty-wellness': 'https://images.unsplash.com/photo-1560750588-73207b1ef5b8?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    'safety-security': 'https://images.unsplash.com/photo-1563986768609-322da13575f3?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    'legal-compliance': 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    'finance-accounting': 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+  };
+  return images[slug || ''] || 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80';
+}
 
 export default CourseDetail;

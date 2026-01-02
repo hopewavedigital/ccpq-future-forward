@@ -34,6 +34,11 @@ const Courses = () => {
           <p className="text-xl text-primary-foreground/80 max-w-2xl mx-auto">
             Explore our industry-aligned diploma programmes and short courses.
           </p>
+          {!isLoading && courses && (
+            <p className="mt-4 text-lg font-semibold bg-white/10 inline-block px-6 py-2 rounded-full">
+              {courses.length} Courses Available
+            </p>
+          )}
         </div>
       </section>
 
