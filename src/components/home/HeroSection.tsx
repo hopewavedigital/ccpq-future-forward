@@ -47,11 +47,11 @@ export function HeroSection() {
             {/* Stats */}
             <div className="flex flex-wrap gap-8 pt-4">
               <div>
-                <div className="text-3xl font-display font-bold">500+</div>
+                <div className="text-3xl font-display font-bold">1000s</div>
                 <div className="text-sm text-primary-foreground/70">Students Enrolled</div>
               </div>
               <div>
-                <div className="text-3xl font-display font-bold">20+</div>
+                <div className="text-3xl font-display font-bold">2600+</div>
                 <div className="text-sm text-primary-foreground/70">Courses Available</div>
               </div>
               <div>
