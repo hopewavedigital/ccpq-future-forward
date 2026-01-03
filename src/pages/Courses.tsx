@@ -1,15 +1,17 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { CourseCard } from '@/components/courses/CourseCard';
 import { CategoryFilter } from '@/components/courses/CategoryFilter';
 import { useCourses } from '@/hooks/useCourses';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 
 const Courses = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const categoryParam = searchParams.get('category');
   const [activeCategory, setActiveCategory] = useState<string | null>(categoryParam);
+  const [searchQuery, setSearchQuery] = useState('');
   
   const { data: courses, isLoading } = useCourses(activeCategory || undefined);
 
@@ -22,8 +24,21 @@ const Courses = () => {
     }
   };
 
-  const diplomas = courses?.filter(c => c.course_type === 'diploma') || [];
-  const shortCourses = courses?.filter(c => c.course_type === 'short_course') || [];
+  // Filter courses by search query
+  const filteredCourses = useMemo(() => {
+    if (!courses) return [];
+    if (!searchQuery.trim()) return courses;
+    
+    const query = searchQuery.toLowerCase();
+    return courses.filter(course => 
+      course.title.toLowerCase().includes(query) ||
+      course.short_description?.toLowerCase().includes(query) ||
+      course.description?.toLowerCase().includes(query)
+    );
+  }, [courses, searchQuery]);
+
+  const diplomas = filteredCourses.filter(c => c.course_type === 'diploma');
+  const shortCourses = filteredCourses.filter(c => c.course_type === 'short_course');
 
   return (
     <Layout>
@@ -39,6 +54,25 @@ const Courses = () => {
               {courses.length} Courses Available
             </p>
           )}
+          
+          {/* Search Bar */}
+          <div className="mt-8 max-w-xl mx-auto">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search for courses..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-12 py-6 text-lg bg-white text-foreground border-0 shadow-lg rounded-full"
+              />
+            </div>
+            {searchQuery && (
+              <p className="mt-3 text-sm text-primary-foreground/70">
+                Found {filteredCourses.length} course{filteredCourses.length !== 1 ? 's' : ''} matching "{searchQuery}"
+              </p>
+            )}
+          </div>
         </div>
       </section>
 
