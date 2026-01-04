@@ -2,6 +2,7 @@ import { Layout } from '@/components/layout/Layout';
 import { HeroSection } from '@/components/home/HeroSection';
 import StudentsBannerCarousel from '@/components/home/StudentsBannerCarousel';
 import { WhyChooseSection } from '@/components/home/WhyChooseSection';
+import { AccreditationSection } from '@/components/home/AccreditationSection';
 import { FeaturedCoursesSection } from '@/components/home/FeaturedCoursesSection';
 import { HowItWorksSection } from '@/components/home/HowItWorksSection';
 import { TestimonialsSection } from '@/components/home/TestimonialsSection';
@@ -13,6 +14,7 @@ const Index = () => {
       <HeroSection />
       <StudentsBannerCarousel />
       <WhyChooseSection />
+      <AccreditationSection />
       <FeaturedCoursesSection />
       <HowItWorksSection />
       <TestimonialsSection />
