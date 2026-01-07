@@ -35,7 +35,7 @@ export function CTASection() {
                 </Button>
               </Link>
               <Link to="/contact">
-                <Button size="lg" variant="outline" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">
+                <Button size="lg" variant="outline" className="border-primary-foreground bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20">
                   Speak to an Advisor
                 </Button>
               </Link>
@@ -44,8 +44,12 @@ export function CTASection() {
             {/* Pricing Highlight */}
             <div className="mt-10 flex flex-wrap justify-center gap-8">
               <div className="text-center">
-                <div className="text-2xl font-display font-bold text-primary-foreground">R2,999</div>
-                <div className="text-sm text-primary-foreground/70">Certificate Courses: 1 week to 3 months</div>
+                <div className="text-2xl font-display font-bold text-primary-foreground">R4,999</div>
+                <div className="text-sm text-primary-foreground/70">Certificate Courses</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-display font-bold text-primary-foreground">R9,999</div>
+                <div className="text-sm text-primary-foreground/70">Diploma Programmes</div>
               </div>
             </div>
           </div>
