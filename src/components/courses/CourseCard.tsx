@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Clock, Tag, ArrowRight } from 'lucide-react';
+import { Clock, BookOpen, ArrowRight, Award } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Course, CourseCategory } from '@/types/database';
@@ -20,10 +20,14 @@ export function CourseCard({ course, index = 0 }: CourseCardProps) {
 
   const courseImage = course.image_url || getCategoryImage(course.category?.slug);
 
+  // Extract first paragraph as short description if not set
+  const shortDesc = course.short_description || 
+    (course.description ? course.description.split('\n')[0].substring(0, 150) + '...' : 'Professional certification course');
+
   return (
     <div
-      className="bg-card rounded-xl overflow-hidden shadow-card card-hover animate-slide-up"
-      style={{ animationDelay: `${index * 100}ms` }}
+      className="bg-card rounded-xl overflow-hidden shadow-card card-hover animate-slide-up group"
+      style={{ animationDelay: `${index * 50}ms` }}
     >
       {/* Image */}
       <div className="relative h-48 overflow-hidden">
@@ -32,51 +36,64 @@ export function CourseCard({ course, index = 0 }: CourseCardProps) {
           alt={course.title}
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
         />
-        <div className="absolute top-4 left-4">
+        <div className="absolute top-4 left-4 flex gap-2">
           <Badge 
             variant={course.course_type === 'diploma' ? 'default' : 'secondary'}
             className={course.course_type === 'diploma' ? 'bg-accent' : ''}
           >
-            {course.course_type === 'diploma' ? 'Diploma' : 'Short Course'}
+            {course.course_type === 'diploma' ? 'Diploma' : 'Certificate'}
+          </Badge>
+        </div>
+        <div className="absolute top-4 right-4">
+          <Badge variant="outline" className="bg-background/90 text-foreground">
+            <Award className="h-3 w-3 mr-1" />
+            CPD Accredited
           </Badge>
         </div>
       </div>
 
       {/* Content */}
-      <div className="p-6">
+      <div className="p-5">
         {course.category && (
           <span className="text-xs font-medium text-accent uppercase tracking-wider">
             {course.category.name}
           </span>
         )}
         
-        <h3 className="text-lg font-display font-semibold text-foreground mt-2 mb-3 line-clamp-2">
+        <h3 className="text-base font-display font-semibold text-foreground mt-2 mb-2 line-clamp-2 min-h-[2.5rem]">
           {course.title}
         </h3>
 
-        <p className="text-muted-foreground text-sm mb-4 line-clamp-2">
-          {course.short_description}
+        <p className="text-muted-foreground text-sm mb-4 line-clamp-2 min-h-[2.5rem]">
+          {shortDesc}
         </p>
 
         {/* Meta */}
-        <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-          {course.duration && (
-            <div className="flex items-center gap-1">
-              <Clock className="h-4 w-4" />
-              <span>{course.duration}</span>
-            </div>
-          )}
-          <div className="flex items-center gap-1">
-            <Tag className="h-4 w-4" />
-            <span>{formatPrice(course.price)}</span>
+        <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
+          <div className="flex items-center gap-3">
+            {course.duration && (
+              <div className="flex items-center gap-1">
+                <Clock className="h-4 w-4 text-primary" />
+                <span>{course.duration}</span>
+              </div>
+            )}
+            {course.module_count > 0 && (
+              <div className="flex items-center gap-1">
+                <BookOpen className="h-4 w-4 text-primary" />
+                <span>{course.module_count} Modules</span>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex gap-2">
-          <Link to={`/courses/${course.slug}`} className="flex-1">
-            <Button variant="outline" className="w-full gap-2">
-              Learn More
+        {/* Price and CTA */}
+        <div className="flex items-center justify-between pt-3 border-t border-border">
+          <div className="text-lg font-bold text-primary">
+            {formatPrice(course.price)}
+          </div>
+          <Link to={`/courses/${course.slug}`}>
+            <Button size="sm" className="gap-1">
+              View Course
               <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
