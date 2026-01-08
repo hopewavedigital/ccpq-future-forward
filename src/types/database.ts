@@ -29,6 +29,11 @@ export interface Course {
   duration: string | null;
   is_published: boolean;
   payment_link: string | null;
+  curriculum: string | null;
+  learning_outcomes: string | null;
+  who_should_take: string | null;
+  external_url: string | null;
+  module_count: number;
   created_at: string;
   updated_at: string;
   category?: CourseCategory;

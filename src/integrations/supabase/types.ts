@@ -46,49 +46,64 @@ export type Database = {
           category_id: string | null
           course_type: string
           created_at: string
+          curriculum: string | null
           description: string | null
           duration: string | null
+          external_url: string | null
           id: string
           image_url: string | null
           is_published: boolean | null
+          learning_outcomes: string | null
+          module_count: number | null
           payment_link: string | null
           price: number
           short_description: string | null
           slug: string
           title: string
           updated_at: string
+          who_should_take: string | null
         }
         Insert: {
           category_id?: string | null
           course_type?: string
           created_at?: string
+          curriculum?: string | null
           description?: string | null
           duration?: string | null
+          external_url?: string | null
           id?: string
           image_url?: string | null
           is_published?: boolean | null
+          learning_outcomes?: string | null
+          module_count?: number | null
           payment_link?: string | null
           price?: number
           short_description?: string | null
           slug: string
           title: string
           updated_at?: string
+          who_should_take?: string | null
         }
         Update: {
           category_id?: string | null
           course_type?: string
           created_at?: string
+          curriculum?: string | null
           description?: string | null
           duration?: string | null
+          external_url?: string | null
           id?: string
           image_url?: string | null
           is_published?: boolean | null
+          learning_outcomes?: string | null
+          module_count?: number | null
           payment_link?: string | null
           price?: number
           short_description?: string | null
           slug?: string
           title?: string
           updated_at?: string
+          who_should_take?: string | null
         }
         Relationships: [
           {
