@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
-import { CourseCard } from '@/components/courses/CourseCard';
+import { CourseListItem } from '@/components/courses/CourseListItem';
 import { CategoryFilter } from '@/components/courses/CategoryFilter';
 import { useCourses } from '@/hooks/useCourses';
 import { Loader2, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
-const INITIAL_VISIBLE = 12;
-const STEP = 12;
+const INITIAL_VISIBLE = 20;
+const STEP = 20;
 
 const Courses = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -113,16 +113,16 @@ const Courses = () => {
                 <div className="mb-16">
                   <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-2 mb-6">
                     <h2 className="text-2xl font-display font-bold">
-                      Diploma Programmes <span className="text-accent">R4,999</span>
+                      Diploma Programmes <span className="text-accent">R9,999 each</span>
                     </h2>
                     <p className="text-sm text-muted-foreground">
                       Showing {diplomasToShow.length} of {diplomas.length}
                     </p>
                   </div>
 
-                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="flex flex-col gap-3">
                     {diplomasToShow.map((course, index) => (
-                      <CourseCard key={course.id} course={course} index={index} />
+                      <CourseListItem key={course.id} course={course} index={index} />
                     ))}
                   </div>
 
@@ -134,7 +134,7 @@ const Courses = () => {
                           setVisibleDiplomas((v) => Math.min(v + STEP, diplomas.length))
                         }
                       >
-                        Load more diplomas
+                        Load more diplomas ({diplomas.length - diplomasToShow.length} remaining)
                       </Button>
                     </div>
                   )}
@@ -146,16 +146,16 @@ const Courses = () => {
                 <div>
                   <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-2 mb-6">
                     <h2 className="text-2xl font-display font-bold">
-                      Short Courses <span className="text-accent">R2,999</span>
+                      Short Courses <span className="text-accent">R4,999 each</span>
                     </h2>
                     <p className="text-sm text-muted-foreground">
                       Showing {shortCoursesToShow.length} of {shortCourses.length}
                     </p>
                   </div>
 
-                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="flex flex-col gap-3">
                     {shortCoursesToShow.map((course, index) => (
-                      <CourseCard key={course.id} course={course} index={index} />
+                      <CourseListItem key={course.id} course={course} index={index} />
                     ))}
                   </div>
 
@@ -167,7 +167,7 @@ const Courses = () => {
                           setVisibleShortCourses((v) => Math.min(v + STEP, shortCourses.length))
                         }
                       >
-                        Load more short courses
+                        Load more short courses ({shortCourses.length - shortCoursesToShow.length} remaining)
                       </Button>
                     </div>
                   )}
