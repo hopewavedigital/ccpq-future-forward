@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { CourseDetailTabs } from '@/components/courses/CourseDetailTabs';
 import { useCourse } from '@/hooks/useCourses';
 import { useEnrollment } from '@/hooks/useEnrollments';
 import { useAuth } from '@/contexts/AuthContext';
@@ -115,18 +116,12 @@ const CourseDetail = () => {
                   />
                 </div>
               )}
-              
-              <h2 className="text-2xl font-display font-bold mb-4">About This Course</h2>
-              <div className="text-muted-foreground mb-8 whitespace-pre-line">{course.description}</div>
-              
-              <h3 className="text-xl font-display font-bold mb-4">What You'll Learn</h3>
-              <ul className="space-y-3 mb-8">
-                {['Industry-relevant skills', 'Practical knowledge', 'Professional development', 'Career advancement'].map((item) => (
-                  <li key={item} className="flex items-center gap-3">
-                    <Check className="h-5 w-5 text-accent" /><span>{item}</span>
-                  </li>
-                ))}
-              </ul>
+              <CourseDetailTabs
+                description={course.description}
+                curriculum={course.curriculum}
+                learningOutcomes={course.learning_outcomes}
+                whoShouldTake={course.who_should_take}
+              />
             </div>
 
             <div>
