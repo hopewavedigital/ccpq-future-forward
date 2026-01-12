@@ -2,35 +2,56 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Course, CourseCategory } from '@/types/database';
 
+const COURSES_PAGE_SIZE = 1000;
+
 export function useCourses(categorySlug?: string) {
   return useQuery({
     queryKey: ['courses', categorySlug],
     queryFn: async () => {
-      let query = supabase
-        .from('courses')
-        .select(`
-          *,
-          category:course_categories(*)
-        `)
-        .eq('is_published', true)
-        .order('created_at', { ascending: false });
+      let categoryId: string | null = null;
 
       if (categorySlug) {
-        const { data: category } = await supabase
+        const { data: category, error: categoryError } = await supabase
           .from('course_categories')
           .select('id')
           .eq('slug', categorySlug)
-          .single();
-        
-        if (category) {
-          query = query.eq('category_id', category.id);
-        }
+          .maybeSingle();
+
+        if (categoryError) throw categoryError;
+        categoryId = category?.id ?? null;
       }
 
-      const { data, error } = await query;
+      const all: (Course & { category: CourseCategory })[] = [];
+      let from = 0;
 
-      if (error) throw error;
-      return data as (Course & { category: CourseCategory })[];
+      while (true) {
+        let query = supabase
+          .from('courses')
+          .select(
+            `
+            *,
+            category:course_categories(*)
+          `
+          )
+          .eq('is_published', true)
+          .order('created_at', { ascending: false })
+          .range(from, from + COURSES_PAGE_SIZE - 1);
+
+        if (categoryId) {
+          query = query.eq('category_id', categoryId);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        const page = (data ?? []) as (Course & { category: CourseCategory })[];
+        all.push(...page);
+
+        if (page.length < COURSES_PAGE_SIZE) break;
+        from += COURSES_PAGE_SIZE;
+      }
+
+      return all;
     },
   });
 }
@@ -41,10 +62,12 @@ export function useCourse(slug: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('courses')
-        .select(`
+        .select(
+          `
           *,
           category:course_categories(*)
-        `)
+        `
+        )
         .eq('slug', slug)
         .eq('is_published', true)
         .maybeSingle();
