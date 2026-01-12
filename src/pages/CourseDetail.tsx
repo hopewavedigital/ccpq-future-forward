@@ -80,7 +80,20 @@ const CourseDetail = () => {
     );
   }
 
-  const formatPrice = (price: number) => new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', minimumFractionDigits: 0 }).format(price);
+  const formatPrice = (price: number) =>
+    new Intl.NumberFormat('en-ZA', {
+      style: 'currency',
+      currency: 'ZAR',
+      minimumFractionDigits: 0,
+    }).format(price);
+
+  const heroSummary =
+    course.short_description?.trim() ||
+    course.description
+      ?.split(/\r?\n/)
+      .map((l) => l.trim())
+      .find(Boolean) ||
+    'Course overview coming soon.';
 
   return (
     <Layout>
@@ -91,7 +104,7 @@ const CourseDetail = () => {
               {course.course_type === 'diploma' ? 'Diploma' : 'Certificate Course'}
             </Badge>
             <h1 className="text-3xl md:text-4xl font-display font-bold mb-4">{course.title}</h1>
-            <p className="text-lg text-primary-foreground/80 mb-6">{course.short_description}</p>
+            <p className="text-lg text-primary-foreground/80 mb-6">{heroSummary}</p>
             <div className="flex flex-wrap gap-4 text-sm">
               {course.duration && (
                 <div className="flex items-center gap-2"><Clock className="h-4 w-4" />{course.duration}</div>
