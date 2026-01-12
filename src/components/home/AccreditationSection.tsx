@@ -1,5 +1,7 @@
 import { Award, BadgeCheck, Building2, Coins } from 'lucide-react';
-import accreditationImage from '@/assets/ccpq-accreditation.png';
+import qctoLogo from '@/assets/qcto-logo.png';
+import csdLogo from '@/assets/csd-logo.png';
+import cpdLogo from '@/assets/cpd-logo.png';
 
 export function AccreditationSection() {
   return (
@@ -57,14 +59,26 @@ export function AccreditationSection() {
             </div>
           </div>
 
-          {/* Image */}
+          {/* Logos */}
           <div className="relative">
             <div className="bg-card/10 backdrop-blur-sm rounded-2xl p-8 border border-primary-foreground/10">
-              <img
-                src={accreditationImage}
-                alt="CCPQ Accreditation Certificates"
-                className="w-full max-w-md mx-auto rounded-lg"
-              />
+              <div className="flex flex-col gap-8 items-center">
+                <img
+                  src={qctoLogo}
+                  alt="QCTO - Quality Council for Trades and Occupations"
+                  className="h-16 md:h-20 w-auto object-contain"
+                />
+                <img
+                  src={csdLogo}
+                  alt="Central Supplier Database for Government"
+                  className="h-12 md:h-16 w-auto object-contain"
+                />
+                <img
+                  src={cpdLogo}
+                  alt="CPD Quality Standards"
+                  className="h-12 md:h-16 w-auto object-contain"
+                />
+              </div>
               <div className="mt-6 text-center">
                 <p className="text-lg font-semibold text-accent">Internationally Recognized</p>
                 <p className="text-sm text-primary-foreground/70 mt-1">
