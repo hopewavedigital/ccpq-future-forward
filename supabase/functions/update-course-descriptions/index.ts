@@ -28,16 +28,46 @@ function parseCurriculum(curriculum: string): string {
   return lines.join('\n');
 }
 
-// Helper to extract learning outcomes from description
-function extractLearningOutcomes(description: string): string | null {
-  if (!description) return null;
+// Clean HTML tags and convert <br> to newlines
+function cleanHtml(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/<br\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+// Extract the main description (overview section)
+function extractDescription(content: string): string {
+  if (!content) return '';
+  
+  // Clean the content first
+  let cleaned = cleanHtml(content);
+  
+  // Try to extract just the overview/intro section before "Who should take" or "Accredited by"
+  const overviewMatch = cleaned.match(/^(?:Overview:?\s*)?(.+?)(?=(?:Who [Ss]hould [Tt]ake|Accredited by CPD|Key Features|Main Course Features|Learning Outcomes|Certification|Assessment))/is);
+  
+  if (overviewMatch && overviewMatch[1]) {
+    return overviewMatch[1].trim();
+  }
+  
+  // If no match, return cleaned content up to a reasonable length
+  return cleaned.substring(0, 2000).trim();
+}
+
+// Extract learning outcomes
+function extractLearningOutcomes(content: string): string | null {
+  if (!content) return null;
+  
+  const cleaned = cleanHtml(content);
   
   // Look for "Learning Outcomes" section
-  const match = description.match(/Learning Outcomes[\s\S]*?(?=Assessment|Certification|$)/i);
-  if (match) {
-    const outcomes = match[0]
-      .replace(/Learning Outcomes/i, '')
-      .split(/<br\/?>/gi)
+  const match = cleaned.match(/Learning Outcomes[\s\S]*?(?:By the end of the course, learners will be able to:)?\s*([\s\S]*?)(?=Assessment|Certification|Accreditation|$)/i);
+  
+  if (match && match[1]) {
+    const outcomes = match[1]
+      .split('\n')
       .map(line => line.trim())
       .filter(line => line.length > 0 && !line.startsWith('By the end'));
     
@@ -48,23 +78,39 @@ function extractLearningOutcomes(description: string): string | null {
   return null;
 }
 
-// Helper to extract who should take from description
-function extractWhoShouldTake(description: string): string | null {
-  if (!description) return null;
+// Extract who should take this course
+function extractWhoShouldTake(content: string): string | null {
+  if (!content) return null;
   
-  // Look for "Who should take" or "Who Should Take" section
-  const match = description.match(/Who [Ss]hould [Tt]ake[\s\S]*?(?=Certification|Learning Outcomes|Assessment|$)/i);
-  if (match) {
-    const whoShould = match[0]
-      .replace(/Who [Ss]hould [Tt]ake[^<]*/i, '')
-      .split(/<br\/?>/gi)
+  const cleaned = cleanHtml(content);
+  
+  // Look for "Who should take" section
+  const match = cleaned.match(/Who [Ss]hould [Tt]ake[^:]*[:\s]*([\s\S]*?)(?=Certification|Learning Outcomes|Assessment|Accreditation|Key Features|$)/i);
+  
+  if (match && match[1]) {
+    const who = match[1]
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0 && !line.match(/^Anyone with a knack/i));
+    
+    if (who.length > 0) {
+      return who.join('\n');
+    }
+  }
+  
+  // Also check for specific role lists
+  const rolesMatch = cleaned.match(/(?:This course is ideal for|ideal for those|includes the following professions)[:\s]*([\s\S]*?)(?=Certification|Learning|Assessment|$)/i);
+  if (rolesMatch && rolesMatch[1]) {
+    const roles = rolesMatch[1]
+      .split('\n')
       .map(line => line.trim())
       .filter(line => line.length > 0);
     
-    if (whoShould.length > 0) {
-      return whoShould.join('\n');
+    if (roles.length > 0) {
+      return roles.join('\n');
     }
   }
+  
   return null;
 }
 
@@ -113,22 +159,18 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const cleanedDescription = cleanDescription(course.content);
+      const description = extractDescription(course.content);
       const curriculum = parseCurriculum(course.curriculum);
       const learningOutcomes = extractLearningOutcomes(course.content);
       const whoShouldTake = extractWhoShouldTake(course.content);
 
       const updateData: Record<string, string | null> = {
-        description: cleanedDescription,
+        description: description || null,
         curriculum: curriculum || null,
+        learning_outcomes: learningOutcomes,
+        who_should_take: whoShouldTake,
       };
 
-      if (learningOutcomes) {
-        updateData.learning_outcomes = learningOutcomes;
-      }
-      if (whoShouldTake) {
-        updateData.who_should_take = whoShouldTake;
-      }
       if (course.duration) {
         updateData.duration = course.duration;
       }
