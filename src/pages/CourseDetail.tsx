@@ -120,15 +120,16 @@ const CourseDetail = () => {
           <div className="grid lg:grid-cols-3 gap-12">
             <div className="lg:col-span-2">
               {/* Course Image */}
-              {(course.image_url || getCourseImage(course.category?.slug)) && (
-                <div className="mb-8 rounded-xl overflow-hidden">
-                  <img 
-                    src={course.image_url || getCourseImage(course.category?.slug)} 
-                    alt={course.title}
-                    className="w-full h-64 md:h-80 object-cover"
-                  />
-                </div>
-              )}
+              <div className="mb-8 rounded-xl overflow-hidden">
+                <img
+                  src={course.image_url || getSeededCourseCover(course.title, course.slug)}
+                  alt={course.title}
+                  loading="lazy"
+                  decoding="async"
+                  className="w-full h-64 md:h-80 object-cover"
+                />
+              </div>
+
               <CourseDetailTabs
                 description={course.description}
                 curriculum={course.curriculum}
@@ -141,7 +142,7 @@ const CourseDetail = () => {
               <div className="bg-card p-6 rounded-xl shadow-card sticky top-24">
                 <div className="text-3xl font-display font-bold text-foreground mb-2">{formatPrice(course.price)}</div>
                 <p className="text-sm text-muted-foreground mb-4">Secure payment via PayPal</p>
-                
+
                 {enrollment ? (
                   <Link to={`/learn/${course.slug}`}>
                     <Button className="w-full bg-accent hover:bg-accent/90 gap-2">
@@ -150,9 +151,9 @@ const CourseDetail = () => {
                   </Link>
                 ) : (
                   <>
-                    <Button 
-                      onClick={handlePayPalCheckout} 
-                      disabled={isProcessing} 
+                    <Button
+                      onClick={handlePayPalCheckout}
+                      disabled={isProcessing}
                       className="w-full bg-[#0070ba] hover:bg-[#005ea6] text-white gap-2"
                     >
                       {isProcessing ? (
@@ -164,7 +165,7 @@ const CourseDetail = () => {
                         </>
                       )}
                     </Button>
-                    
+
                     {!user && (
                       <p className="text-xs text-muted-foreground mt-3 text-center">
                         You'll be asked to create an account after payment
@@ -203,21 +204,43 @@ const CourseDetail = () => {
   );
 };
 
-function getCourseImage(slug?: string): string {
-  const images: Record<string, string> = {
-    'business-management': 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-    'hr-administration': 'https://images.unsplash.com/photo-1521737711867-e3b97375f902?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-    'it-technology': 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-    'healthcare-support': 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-    'marketing-sales': 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-    'education-training': 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-    'hospitality-tourism': 'https://images.unsplash.com/photo-1566073771259-6a8506099945?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-    'beauty-wellness': 'https://images.unsplash.com/photo-1560750588-73207b1ef5b8?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-    'safety-security': 'https://images.unsplash.com/photo-1563986768609-322da13575f3?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-    'legal-compliance': 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-    'finance-accounting': 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-  };
-  return images[slug || ''] || 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80';
+function getSeededCourseCover(title: string, slug: string): string {
+  const seed = hashString(slug || title);
+
+  const hueA = seed % 360;
+  const hueB = (hueA + 55 + (seed % 90)) % 360;
+
+  const initials = title
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => (w[0] ? w[0].toUpperCase() : ''))
+    .join('');
+
+  const safeTitle = escapeXml(title.length > 44 ? `${title.slice(0, 44)}…` : title);
+  const safeInitials = escapeXml(initials || 'CC');
+
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600" viewBox="0 0 1200 600">\n  <defs>\n    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">\n      <stop offset="0%" stop-color="hsl(${hueA} 72% 46%)"/>\n      <stop offset="100%" stop-color="hsl(${hueB} 72% 34%)"/>\n    </linearGradient>\n  </defs>\n  <rect width="1200" height="600" fill="url(#g)"/>\n  <rect width="1200" height="600" fill="hsl(0 0% 0% / 0.18)"/>\n\n  <text x="60" y="520" font-family="Space Grotesk, system-ui, -apple-system, Segoe UI, Roboto" font-size="46" font-weight="700" fill="hsl(0 0% 100% / 0.92)">\n    ${safeTitle}\n  </text>\n\n  <text x="60" y="210" font-family="Space Grotesk, system-ui, -apple-system, Segoe UI, Roboto" font-size="140" font-weight="700" fill="hsl(0 0% 100% / 0.35)">\n    ${safeInitials}\n  </text>\n</svg>`;
+
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+function hashString(input: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function escapeXml(input: string): string {
+  return input
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }
 
 export default CourseDetail;
