@@ -5,6 +5,22 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+type IncomingCourse = {
+  name?: string;
+  title?: string;
+  link?: string;
+  content?: string;
+  curriculum?: string;
+  duration?: string;
+  image?: string;
+};
+
+type ParsedSheetCourse = Required<Pick<IncomingCourse, "name" | "link" | "content" | "curriculum" | "duration" | "image">>;
+
+function normalizeWhitespace(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
 // Extract slug from URL like https://course-hosting.com/course/xyz/
 function extractSlugFromUrl(url: string): string | null {
   if (!url) return null;
@@ -16,42 +32,59 @@ function extractSlugFromUrl(url: string): string | null {
   }
 }
 
+function stripAngleBrackets(value: string): string {
+  const v = value.trim();
+  if (v.startsWith("<") && v.endsWith(">")) return v.slice(1, -1);
+  return v;
+}
+
+function extractFirstUrl(value: string): string | null {
+  if (!value) return null;
+  const match = value.match(/https?:\/\/[^\s)\]]+/i);
+  return match ? match[0] : null;
+}
+
+function extractImageUrl(cell: string): string | null {
+  const url = extractFirstUrl(cell);
+  if (!url) return null;
+  // Avoid the generic folder link if present
+  if (url.includes("drive.google.com/drive") && url.includes("/folders/")) return null;
+  return url;
+}
+
 // Clean HTML tags and convert <br> to newlines
 function cleanHtml(text: string): string {
-  if (!text) return '';
+  if (!text) return "";
   return text
-    .replace(/<br\/?>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
-    .replace(/\n{3,}/g, '\n\n')
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
 // Parse curriculum - clean module list
 function parseCurriculum(curriculum: string): string {
-  if (!curriculum) return '';
+  if (!curriculum) return "";
   const cleaned = cleanHtml(curriculum);
-  // Filter out noise like "3 STUDENTS ENROLLED"
   const lines = cleaned
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line.length > 0 && !line.match(/^\d+\s+STUDENTS?\s+ENROLLED$/i));
-  return lines.join('\n');
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.match(/^\d+\s+STUDENTS?\s+ENROLLED$/i));
+  return lines.join("\n");
 }
 
 // Extract main description (overview section) from content
 function extractDescription(content: string): string {
-  if (!content) return '';
+  if (!content) return "";
   const cleaned = cleanHtml(content);
-  
-  // Try to extract overview section
+
   let desc = cleaned;
-  
-  // Remove everything after these headers
+
   const cutoffPatterns = [
     /Who [Ss]hould [Tt]ake/i,
     /Accredited by CPD/i,
@@ -64,7 +97,7 @@ function extractDescription(content: string): string {
     /Endorsement\s*\n/i,
     /Accreditation\s*\n/i,
   ];
-  
+
   for (const pattern of cutoffPatterns) {
     const match = desc.search(pattern);
     if (match > 100) {
@@ -72,71 +105,151 @@ function extractDescription(content: string): string {
       break;
     }
   }
-  
-  // Clean up "Overview:" prefix
-  desc = desc.replace(/^Overview:?\s*/i, '').trim();
-  
-  // Limit length
+
+  desc = desc.replace(/^Overview:?\s*/i, "").trim();
+
   if (desc.length > 3000) {
-    desc = desc.substring(0, 3000) + '...';
+    desc = desc.substring(0, 3000) + "...";
   }
-  
+
   return desc;
 }
 
-// Extract learning outcomes section
 function extractLearningOutcomes(content: string): string | null {
   if (!content) return null;
   const cleaned = cleanHtml(content);
-  
-  // Match "Learning Outcomes" section
-  const match = cleaned.match(/Learning Outcomes[:\s]*(?:By the end of the course, learners will be able to:)?\s*([\s\S]*?)(?=Assessment|Certification|Accreditation|Who (?:Should|is)|$)/i);
-  
+
+  const match = cleaned.match(
+    /Learning Outcomes[:\s]*(?:By the end of the course, learners will be able to:)?\s*([\s\S]*?)(?=Assessment|Certification|Accreditation|Who (?:Should|is)|$)/i,
+  );
+
   if (match && match[1]) {
     const outcomes = match[1]
-      .split('\n')
-      .map(line => line.trim())
-      .filter(line => line.length > 0 && !line.startsWith('By the end'));
-    
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0 && !line.startsWith("By the end"));
+
     if (outcomes.length > 0) {
-      return outcomes.join('\n');
+      return outcomes.join("\n");
     }
   }
+
   return null;
 }
 
-// Extract "Who should take" section
 function extractWhoShouldTake(content: string): string | null {
   if (!content) return null;
   const cleaned = cleanHtml(content);
-  
-  // Try multiple patterns
+
   const patterns = [
     /Who [Ss]hould [Tt]ake[^:]*[:\s]*([\s\S]*?)(?=Certification|Learning Outcomes|Assessment|Accreditation|Key Features|$)/i,
     /Who is this course for\??[:\s]*([\s\S]*?)(?=Certification|Learning Outcomes|Assessment|Accreditation|$)/i,
-    /(?:This course is ideal for|ideal for those|includes the following professions)[:\s]*([\s\S]*?)(?=Certification|Learning|Assessment|$)/i,
+    /Who Should Take This Course[:\s]*([\s\S]*?)(?=Certification|Learning Outcomes|Assessment|Accreditation|$)/i,
+    /Who Should Take the course[:\s]*([\s\S]*?)(?=Certification|Learning Outcomes|Assessment|Accreditation|$)/i,
   ];
-  
+
   for (const pattern of patterns) {
     const match = cleaned.match(pattern);
     if (match && match[1]) {
       const lines = match[1]
-        .split('\n')
-        .map(line => line.trim())
-        .filter(line => {
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => {
           if (line.length === 0) return false;
-          // Skip generic filler text
           if (line.match(/^Anyone with a knack for learning/i)) return false;
           if (line.match(/^While this comprehensive training/i)) return false;
           return true;
         });
-      
+
       if (lines.length > 0) {
-        return lines.join('\n');
+        return lines.join("\n");
       }
     }
   }
-  
+
+  return null;
+}
+
+function parseBundledSheet(markdown: string): ParsedSheetCourse[] {
+  const lines = markdown.split(/\r?\n/);
+  const courses: ParsedSheetCourse[] = [];
+
+  for (const line of lines) {
+    if (!line.startsWith("|")) continue;
+    if (line.includes("|Course Name|")) continue;
+    if (line.startsWith("|-")) continue;
+
+    const parts = line.split("|").slice(1, -1).map((p) => p.trim());
+    if (parts.length < 6) continue;
+
+    const name = parts[0];
+    const link = stripAngleBrackets(parts[1]);
+
+    // Handle possible stray pipes in content by anchoring last 3 columns.
+    const duration = parts[parts.length - 2] ?? "";
+    const image = parts[parts.length - 1] ?? "";
+    const curriculum = parts[parts.length - 3] ?? "";
+    const content = parts.slice(2, parts.length - 3).join("|");
+
+    if (!name || !link) continue;
+
+    courses.push({
+      name,
+      link,
+      content,
+      curriculum,
+      duration,
+      image,
+    });
+  }
+
+  return courses;
+}
+
+async function loadBundledCourses(): Promise<ParsedSheetCourse[]> {
+  const url = new URL("./course_sheet_parsed.md", import.meta.url);
+  const text = await Deno.readTextFile(url);
+  return parseBundledSheet(text);
+}
+
+async function resolveCourseId(supabase: ReturnType<typeof createClient>, slug: string | null, name: string | undefined) {
+  if (slug) {
+    const { data } = await supabase
+      .from("courses")
+      .select("id, slug, title")
+      .eq("slug", slug)
+      .limit(1);
+
+    if (data && data.length === 1) {
+      return { id: data[0].id as string, matchedBy: "slug" as const };
+    }
+  }
+
+  if (name) {
+    const title = normalizeWhitespace(name);
+
+    // Exact title match (case-sensitive) first
+    let { data } = await supabase
+      .from("courses")
+      .select("id, slug, title")
+      .eq("title", title)
+      .limit(2);
+
+    if (!data || data.length === 0) {
+      // Case-insensitive exact-ish match
+      const res = await supabase
+        .from("courses")
+        .select("id, slug, title")
+        .ilike("title", title)
+        .limit(2);
+      data = res.data;
+    }
+
+    if (data && data.length === 1) {
+      return { id: data[0].id as string, matchedBy: "title" as const };
+    }
+  }
+
   return null;
 }
 
@@ -150,81 +263,120 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { courses } = await req.json();
+    const body = (await req.json().catch(() => ({}))) as {
+      courses?: IncomingCourse[];
+      useBundledSheet?: boolean;
+      offset?: number;
+      limit?: number;
+    };
 
-    if (!courses || !Array.isArray(courses)) {
-      return new Response(JSON.stringify({ error: "courses array required" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    const useBundledSheet = body.useBundledSheet === true;
+    const offset = Math.max(0, Number(body.offset ?? 0) || 0);
+    const limit = Math.min(1000, Math.max(1, Number(body.limit ?? 250) || 250));
+
+    let courses: IncomingCourse[] | null = null;
+    let totalInSheet: number | null = null;
+
+    if (useBundledSheet) {
+      const all = await loadBundledCourses();
+      totalInSheet = all.length;
+      courses = all.slice(offset, offset + limit);
+      console.log(`Bundled sync: total=${totalInSheet} offset=${offset} limit=${limit}`);
+    } else if (Array.isArray(body.courses)) {
+      courses = body.courses;
+      console.log(`Payload sync: processing ${courses.length} courses...`);
     }
 
-    console.log(`Processing ${courses.length} courses...`);
+    if (!courses || !Array.isArray(courses)) {
+      return new Response(
+        JSON.stringify({
+          error: "Provide { courses: [...] } or { useBundledSheet: true, offset, limit }",
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
 
     const results = {
       updated: 0,
-      failed: 0,
+      skipped: 0,
       notFound: 0,
+      failed: 0,
+      matchedBySlug: 0,
+      matchedByTitle: 0,
+      offset: useBundledSheet ? offset : null,
+      limit: useBundledSheet ? limit : null,
+      totalInSheet,
       errors: [] as string[],
     };
 
     for (const course of courses) {
-      const slug = extractSlugFromUrl(course.link);
-      if (!slug) {
-        results.failed++;
-        if (results.errors.length < 20) {
-          results.errors.push(`Invalid URL: ${course.link}`);
-        }
-        continue;
-      }
+      const name = course.name ?? course.title;
+      const link = course.link ?? "";
+      const slug = extractSlugFromUrl(link);
 
-      const description = extractDescription(course.content);
-      const curriculum = parseCurriculum(course.curriculum);
-      const learningOutcomes = extractLearningOutcomes(course.content);
-      const whoShouldTake = extractWhoShouldTake(course.content);
+      const description = extractDescription(course.content ?? "");
+      const curriculum = parseCurriculum(course.curriculum ?? "");
+      const learningOutcomes = extractLearningOutcomes(course.content ?? "");
+      const whoShouldTake = extractWhoShouldTake(course.content ?? "");
+      const imageUrl = extractImageUrl(course.image ?? "");
+      const duration = course.duration ? cleanHtml(course.duration) : "";
 
       const updateData: Record<string, string | null> = {};
-      
-      if (description) {
-        updateData.description = description;
-      }
-      if (curriculum) {
-        updateData.curriculum = curriculum;
-      }
-      if (learningOutcomes) {
-        updateData.learning_outcomes = learningOutcomes;
-      }
-      if (whoShouldTake) {
-        updateData.who_should_take = whoShouldTake;
-      }
-      if (course.duration) {
-        updateData.duration = course.duration;
-      }
 
-      // Skip if no data to update
+      if (description) updateData.description = description;
+      if (curriculum) updateData.curriculum = curriculum;
+      if (learningOutcomes) updateData.learning_outcomes = learningOutcomes;
+      if (whoShouldTake) updateData.who_should_take = whoShouldTake;
+      if (duration) updateData.duration = duration;
+      if (imageUrl) updateData.image_url = imageUrl;
+
       if (Object.keys(updateData).length === 0) {
+        results.skipped++;
         continue;
       }
+
+      const resolved = await resolveCourseId(supabase, slug, name);
+
+      if (!resolved) {
+        results.notFound++;
+        continue;
+      }
+
+      if (resolved.matchedBy === "slug") results.matchedBySlug++;
+      else results.matchedByTitle++;
 
       const { data, error } = await supabase
         .from("courses")
         .update(updateData)
-        .eq("slug", slug)
-        .select("id");
+        .eq("id", resolved.id)
+        .select("id")
+        .limit(1);
 
       if (error) {
         results.failed++;
-        if (results.errors.length < 20) {
-          results.errors.push(`${slug}: ${error.message}`);
+        if (results.errors.length < 30) {
+          results.errors.push(`${name ?? slug ?? "unknown"}: ${error.message}`);
         }
-      } else if (!data || data.length === 0) {
-        results.notFound++;
-      } else {
-        results.updated++;
+        continue;
       }
+
+      if (!data || data.length === 0) {
+        results.failed++;
+        if (results.errors.length < 30) {
+          results.errors.push(`${name ?? slug ?? "unknown"}: update returned no rows`);
+        }
+        continue;
+      }
+
+      results.updated++;
     }
 
-    console.log(`Completed: ${results.updated} updated, ${results.notFound} not found, ${results.failed} failed`);
+    console.log(
+      `Completed: updated=${results.updated} skipped=${results.skipped} notFound=${results.notFound} failed=${results.failed}`,
+    );
 
     return new Response(JSON.stringify(results), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
