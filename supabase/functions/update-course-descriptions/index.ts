@@ -5,8 +5,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Helper to extract slug from URL
+// Extract slug from URL like https://course-hosting.com/course/xyz/
 function extractSlugFromUrl(url: string): string | null {
+  if (!url) return null;
   try {
     const match = url.match(/\/course\/([^/]+)\/?$/);
     return match ? match[1] : null;
@@ -15,55 +16,81 @@ function extractSlugFromUrl(url: string): string | null {
   }
 }
 
-// Helper to parse curriculum into structured format
-function parseCurriculum(curriculum: string): string {
-  if (!curriculum) return '';
-  
-  // Split by <br/> and clean up module lines
-  const lines = curriculum
-    .split(/<br\/?>/gi)
-    .map(line => line.trim())
-    .filter(line => line.length > 0 && !line.match(/^\d+\s+STUDENTS?\s+ENROLLED$/i));
-  
-  return lines.join('\n');
-}
-
 // Clean HTML tags and convert <br> to newlines
 function cleanHtml(text: string): string {
   if (!text) return '';
   return text
     .replace(/<br\/?>/gi, '\n')
     .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
 
-// Extract the main description (overview section)
-function extractDescription(content: string): string {
-  if (!content) return '';
-  
-  // Clean the content first
-  let cleaned = cleanHtml(content);
-  
-  // Try to extract just the overview/intro section before "Who should take" or "Accredited by"
-  const overviewMatch = cleaned.match(/^(?:Overview:?\s*)?(.+?)(?=(?:Who [Ss]hould [Tt]ake|Accredited by CPD|Key Features|Main Course Features|Learning Outcomes|Certification|Assessment))/is);
-  
-  if (overviewMatch && overviewMatch[1]) {
-    return overviewMatch[1].trim();
-  }
-  
-  // If no match, return cleaned content up to a reasonable length
-  return cleaned.substring(0, 2000).trim();
+// Parse curriculum - clean module list
+function parseCurriculum(curriculum: string): string {
+  if (!curriculum) return '';
+  const cleaned = cleanHtml(curriculum);
+  // Filter out noise like "3 STUDENTS ENROLLED"
+  const lines = cleaned
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0 && !line.match(/^\d+\s+STUDENTS?\s+ENROLLED$/i));
+  return lines.join('\n');
 }
 
-// Extract learning outcomes
-function extractLearningOutcomes(content: string): string | null {
-  if (!content) return null;
-  
+// Extract main description (overview section) from content
+function extractDescription(content: string): string {
+  if (!content) return '';
   const cleaned = cleanHtml(content);
   
-  // Look for "Learning Outcomes" section
-  const match = cleaned.match(/Learning Outcomes[\s\S]*?(?:By the end of the course, learners will be able to:)?\s*([\s\S]*?)(?=Assessment|Certification|Accreditation|$)/i);
+  // Try to extract overview section
+  let desc = cleaned;
+  
+  // Remove everything after these headers
+  const cutoffPatterns = [
+    /Who [Ss]hould [Tt]ake/i,
+    /Accredited by CPD/i,
+    /Key Features/i,
+    /Main Course Features/i,
+    /Certification\s*\n/i,
+    /Learning Outcomes\s*\n/i,
+    /Assessment\s*\n/i,
+    /Who is this course for/i,
+    /Endorsement\s*\n/i,
+    /Accreditation\s*\n/i,
+  ];
+  
+  for (const pattern of cutoffPatterns) {
+    const match = desc.search(pattern);
+    if (match > 100) {
+      desc = desc.substring(0, match);
+      break;
+    }
+  }
+  
+  // Clean up "Overview:" prefix
+  desc = desc.replace(/^Overview:?\s*/i, '').trim();
+  
+  // Limit length
+  if (desc.length > 3000) {
+    desc = desc.substring(0, 3000) + '...';
+  }
+  
+  return desc;
+}
+
+// Extract learning outcomes section
+function extractLearningOutcomes(content: string): string | null {
+  if (!content) return null;
+  const cleaned = cleanHtml(content);
+  
+  // Match "Learning Outcomes" section
+  const match = cleaned.match(/Learning Outcomes[:\s]*(?:By the end of the course, learners will be able to:)?\s*([\s\S]*?)(?=Assessment|Certification|Accreditation|Who (?:Should|is)|$)/i);
   
   if (match && match[1]) {
     const outcomes = match[1]
@@ -78,51 +105,39 @@ function extractLearningOutcomes(content: string): string | null {
   return null;
 }
 
-// Extract who should take this course
+// Extract "Who should take" section
 function extractWhoShouldTake(content: string): string | null {
   if (!content) return null;
-  
   const cleaned = cleanHtml(content);
   
-  // Look for "Who should take" section
-  const match = cleaned.match(/Who [Ss]hould [Tt]ake[^:]*[:\s]*([\s\S]*?)(?=Certification|Learning Outcomes|Assessment|Accreditation|Key Features|$)/i);
+  // Try multiple patterns
+  const patterns = [
+    /Who [Ss]hould [Tt]ake[^:]*[:\s]*([\s\S]*?)(?=Certification|Learning Outcomes|Assessment|Accreditation|Key Features|$)/i,
+    /Who is this course for\??[:\s]*([\s\S]*?)(?=Certification|Learning Outcomes|Assessment|Accreditation|$)/i,
+    /(?:This course is ideal for|ideal for those|includes the following professions)[:\s]*([\s\S]*?)(?=Certification|Learning|Assessment|$)/i,
+  ];
   
-  if (match && match[1]) {
-    const who = match[1]
-      .split('\n')
-      .map(line => line.trim())
-      .filter(line => line.length > 0 && !line.match(/^Anyone with a knack/i));
-    
-    if (who.length > 0) {
-      return who.join('\n');
-    }
-  }
-  
-  // Also check for specific role lists
-  const rolesMatch = cleaned.match(/(?:This course is ideal for|ideal for those|includes the following professions)[:\s]*([\s\S]*?)(?=Certification|Learning|Assessment|$)/i);
-  if (rolesMatch && rolesMatch[1]) {
-    const roles = rolesMatch[1]
-      .split('\n')
-      .map(line => line.trim())
-      .filter(line => line.length > 0);
-    
-    if (roles.length > 0) {
-      return roles.join('\n');
+  for (const pattern of patterns) {
+    const match = cleaned.match(pattern);
+    if (match && match[1]) {
+      const lines = match[1]
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => {
+          if (line.length === 0) return false;
+          // Skip generic filler text
+          if (line.match(/^Anyone with a knack for learning/i)) return false;
+          if (line.match(/^While this comprehensive training/i)) return false;
+          return true;
+        });
+      
+      if (lines.length > 0) {
+        return lines.join('\n');
+      }
     }
   }
   
   return null;
-}
-
-// Clean HTML from description
-function cleanDescription(description: string): string {
-  if (!description) return '';
-  
-  return description
-    .replace(/<br\/?>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
 }
 
 Deno.serve(async (req) => {
@@ -144,6 +159,8 @@ Deno.serve(async (req) => {
       });
     }
 
+    console.log(`Processing ${courses.length} courses...`);
+
     const results = {
       updated: 0,
       failed: 0,
@@ -155,7 +172,9 @@ Deno.serve(async (req) => {
       const slug = extractSlugFromUrl(course.link);
       if (!slug) {
         results.failed++;
-        results.errors.push(`Invalid URL: ${course.link}`);
+        if (results.errors.length < 20) {
+          results.errors.push(`Invalid URL: ${course.link}`);
+        }
         continue;
       }
 
@@ -164,15 +183,27 @@ Deno.serve(async (req) => {
       const learningOutcomes = extractLearningOutcomes(course.content);
       const whoShouldTake = extractWhoShouldTake(course.content);
 
-      const updateData: Record<string, string | null> = {
-        description: description || null,
-        curriculum: curriculum || null,
-        learning_outcomes: learningOutcomes,
-        who_should_take: whoShouldTake,
-      };
-
+      const updateData: Record<string, string | null> = {};
+      
+      if (description) {
+        updateData.description = description;
+      }
+      if (curriculum) {
+        updateData.curriculum = curriculum;
+      }
+      if (learningOutcomes) {
+        updateData.learning_outcomes = learningOutcomes;
+      }
+      if (whoShouldTake) {
+        updateData.who_should_take = whoShouldTake;
+      }
       if (course.duration) {
         updateData.duration = course.duration;
+      }
+
+      // Skip if no data to update
+      if (Object.keys(updateData).length === 0) {
+        continue;
       }
 
       const { data, error } = await supabase
@@ -183,7 +214,9 @@ Deno.serve(async (req) => {
 
       if (error) {
         results.failed++;
-        results.errors.push(`${slug}: ${error.message}`);
+        if (results.errors.length < 20) {
+          results.errors.push(`${slug}: ${error.message}`);
+        }
       } else if (!data || data.length === 0) {
         results.notFound++;
       } else {
@@ -191,11 +224,14 @@ Deno.serve(async (req) => {
       }
     }
 
+    console.log(`Completed: ${results.updated} updated, ${results.notFound} not found, ${results.failed} failed`);
+
     return new Response(JSON.stringify(results), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("Error:", message);
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
