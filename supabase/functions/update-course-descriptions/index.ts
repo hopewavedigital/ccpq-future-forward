@@ -15,10 +15,20 @@ type IncomingCourse = {
   image?: string;
 };
 
-type ParsedSheetCourse = Required<Pick<IncomingCourse, "name" | "link" | "content" | "curriculum" | "duration" | "image">>;
+type ParsedSheetCourse = Required<
+  Pick<IncomingCourse, "name" | "link" | "content" | "curriculum" | "duration" | "image">
+>;
+
+type CourseRow = { id: string; slug: string | null; title: string };
 
 function normalizeWhitespace(value: string): string {
   return value.replace(/\s+/g, " ").trim();
+}
+
+function stripAngleBrackets(value: string): string {
+  const v = value.trim();
+  if (v.startsWith("<") && v.endsWith(">")) return v.slice(1, -1);
+  return v;
 }
 
 // Extract slug from URL like https://course-hosting.com/course/xyz/
@@ -30,12 +40,6 @@ function extractSlugFromUrl(url: string): string | null {
   } catch {
     return null;
   }
-}
-
-function stripAngleBrackets(value: string): string {
-  const v = value.trim();
-  if (v.startsWith("<") && v.endsWith(">")) return v.slice(1, -1);
-  return v;
 }
 
 function extractFirstUrl(value: string): string | null {
@@ -67,7 +71,6 @@ function cleanHtml(text: string): string {
     .trim();
 }
 
-// Parse curriculum - clean module list
 function parseCurriculum(curriculum: string): string {
   if (!curriculum) return "";
   const cleaned = cleanHtml(curriculum);
@@ -78,7 +81,6 @@ function parseCurriculum(curriculum: string): string {
   return lines.join("\n");
 }
 
-// Extract main description (overview section) from content
 function extractDescription(content: string): string {
   if (!content) return "";
   const cleaned = cleanHtml(content);
@@ -87,13 +89,14 @@ function extractDescription(content: string): string {
 
   const cutoffPatterns = [
     /Who [Ss]hould [Tt]ake/i,
+    /Who is this course for/i,
+    /Who Should Take This Course/i,
     /Accredited by CPD/i,
     /Key Features/i,
     /Main Course Features/i,
     /Certification\s*\n/i,
     /Learning Outcomes\s*\n/i,
     /Assessment\s*\n/i,
-    /Who is this course for/i,
     /Endorsement\s*\n/i,
     /Accreditation\s*\n/i,
   ];
@@ -108,8 +111,8 @@ function extractDescription(content: string): string {
 
   desc = desc.replace(/^Overview:?\s*/i, "").trim();
 
-  if (desc.length > 3000) {
-    desc = desc.substring(0, 3000) + "...";
+  if (desc.length > 6000) {
+    desc = desc.substring(0, 6000) + "...";
   }
 
   return desc;
@@ -120,7 +123,7 @@ function extractLearningOutcomes(content: string): string | null {
   const cleaned = cleanHtml(content);
 
   const match = cleaned.match(
-    /Learning Outcomes[:\s]*(?:By the end of the course, learners will be able to:)?\s*([\s\S]*?)(?=Assessment|Certification|Accreditation|Who (?:Should|is)|$)/i,
+    /Learning Outcomes[:\s]*([\s\S]*?)(?=Assessment|Certification|Accreditation|Who (?:Should|is)|$)/i,
   );
 
   if (match && match[1]) {
@@ -129,9 +132,7 @@ function extractLearningOutcomes(content: string): string | null {
       .map((line) => line.trim())
       .filter((line) => line.length > 0 && !line.startsWith("By the end"));
 
-    if (outcomes.length > 0) {
-      return outcomes.join("\n");
-    }
+    if (outcomes.length > 0) return outcomes.join("\n");
   }
 
   return null;
@@ -156,61 +157,129 @@ function extractWhoShouldTake(content: string): string | null {
         .map((line) => line.trim())
         .filter((line) => {
           if (line.length === 0) return false;
+          // Remove generic filler lines that appear in some course pages
           if (line.match(/^Anyone with a knack for learning/i)) return false;
           if (line.match(/^While this comprehensive training/i)) return false;
           return true;
         });
 
-      if (lines.length > 0) {
-        return lines.join("\n");
-      }
+      if (lines.length > 0) return lines.join("\n");
     }
   }
 
   return null;
 }
 
-type CourseRow = { id: string; slug: string; title: string };
+function parseBundledSheet(markdown: string): ParsedSheetCourse[] {
+  const lines = markdown.split(/\r?\n/);
+  const courses: ParsedSheetCourse[] = [];
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function resolveCourseId(supabase: any, slug: string | null, name: string | undefined) {
-  if (slug) {
-    const { data } = await supabase
+  for (const line of lines) {
+    if (!line.startsWith("|")) continue;
+    if (line.includes("|Course Name|")) continue;
+    if (line.startsWith("|-") || line.startsWith("|-")) continue;
+
+    const parts = line.split("|").slice(1, -1).map((p) => p.trim());
+    if (parts.length < 5) continue;
+
+    const name = parts[0] ?? "";
+    const link = stripAngleBrackets(parts[1] ?? "");
+
+    // Handle possible stray pipes in content by anchoring last 3 columns.
+    const duration = parts[parts.length - 2] ?? "";
+    const image = parts[parts.length - 1] ?? "";
+    const curriculum = parts[parts.length - 3] ?? "";
+    const content = parts.slice(2, parts.length - 3).join("|");
+
+    if (!name || !link) continue;
+
+    courses.push({ name, link, content, curriculum, duration, image });
+  }
+
+  return courses;
+}
+
+async function loadBundledCourses(): Promise<ParsedSheetCourse[]> {
+  const url = new URL("./course_sheet_parsed.md", import.meta.url);
+  const text = await Deno.readTextFile(url);
+  return parseBundledSheet(text);
+}
+
+async function loadCourseIndex(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+): Promise<{
+  bySlug: Map<string, string>;
+  byTitle: Map<string, string>;
+  byTitleLower: Map<string, string>;
+}> {
+  const bySlug = new Map<string, string>();
+
+  const titleCounts = new Map<string, { id: string; count: number }>();
+  const titleLowerCounts = new Map<string, { id: string; count: number }>();
+
+  const PAGE = 1000;
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabase
       .from("courses")
       .select("id, slug, title")
-      .eq("slug", slug)
-      .limit(1) as { data: CourseRow[] | null };
+      .range(from, from + PAGE - 1);
 
-    if (data && data.length === 1) {
-      return { id: data[0].id, matchedBy: "slug" as const };
+    if (error) throw error;
+
+    const page = (data ?? []) as CourseRow[];
+    for (const row of page) {
+      if (row.slug) bySlug.set(row.slug, row.id);
+
+      const t = normalizeWhitespace(row.title || "");
+      if (t) {
+        const existing = titleCounts.get(t);
+        if (!existing) titleCounts.set(t, { id: row.id, count: 1 });
+        else titleCounts.set(t, { id: existing.id, count: existing.count + 1 });
+
+        const tl = t.toLowerCase();
+        const existingL = titleLowerCounts.get(tl);
+        if (!existingL) titleLowerCounts.set(tl, { id: row.id, count: 1 });
+        else titleLowerCounts.set(tl, { id: existingL.id, count: existingL.count + 1 });
+      }
     }
+
+    if (page.length < PAGE) break;
+    from += PAGE;
+  }
+
+  const byTitle = new Map<string, string>();
+  for (const [k, v] of titleCounts.entries()) {
+    if (v.count === 1) byTitle.set(k, v.id);
+  }
+
+  const byTitleLower = new Map<string, string>();
+  for (const [k, v] of titleLowerCounts.entries()) {
+    if (v.count === 1) byTitleLower.set(k, v.id);
+  }
+
+  return { bySlug, byTitle, byTitleLower };
+}
+
+function resolveCourseIdFromIndex(
+  index: { bySlug: Map<string, string>; byTitle: Map<string, string>; byTitleLower: Map<string, string> },
+  slug: string | null,
+  name: string | undefined,
+): { id: string; matchedBy: "slug" | "title" | "title_ilike" } | null {
+  if (slug) {
+    const id = index.bySlug.get(slug);
+    if (id) return { id, matchedBy: "slug" };
   }
 
   if (name) {
     const title = normalizeWhitespace(name);
+    const exact = index.byTitle.get(title);
+    if (exact) return { id: exact, matchedBy: "title" };
 
-    // Exact title match (case-sensitive) first
-    const result = await supabase
-      .from("courses")
-      .select("id, slug, title")
-      .eq("title", title)
-      .limit(2) as { data: CourseRow[] | null };
-
-    let data = result.data;
-
-    if (!data || data.length === 0) {
-      // Case-insensitive exact-ish match
-      const res = await supabase
-        .from("courses")
-        .select("id, slug, title")
-        .ilike("title", title)
-        .limit(2) as { data: CourseRow[] | null };
-      data = res.data;
-    }
-
-    if (data && data.length === 1) {
-      return { id: data[0].id, matchedBy: "title" as const };
-    }
+    const ilike = index.byTitleLower.get(title.toLowerCase());
+    if (ilike) return { id: ilike, matchedBy: "title_ilike" };
   }
 
   return null;
@@ -228,23 +297,39 @@ Deno.serve(async (req) => {
 
     const body = (await req.json().catch(() => ({}))) as {
       courses?: IncomingCourse[];
+      useBundledSheet?: boolean;
+      offset?: number;
+      limit?: number;
     };
 
-    const courses = body.courses;
+    const useBundledSheet = body.useBundledSheet === true;
+    const offset = Math.max(0, Number(body.offset ?? 0) || 0);
+    const limitRaw = body.limit == null ? null : Math.max(1, Number(body.limit) || 0);
+    const limit = limitRaw == null ? null : Math.min(5000, limitRaw);
+
+    let courses: IncomingCourse[] | null = null;
+    let totalInSheet: number | null = null;
+
+    if (useBundledSheet) {
+      const all = await loadBundledCourses();
+      totalInSheet = all.length;
+      courses = limit == null ? all : all.slice(offset, offset + limit);
+      console.log(
+        `Bundled sync: total=${totalInSheet} offset=${offset} limit=${limit ?? "ALL"} processing=${courses.length}`,
+      );
+    } else if (Array.isArray(body.courses)) {
+      courses = body.courses;
+      console.log(`Payload sync: processing ${courses.length} courses...`);
+    }
 
     if (!courses || !Array.isArray(courses)) {
       return new Response(
         JSON.stringify({
-          error: "Provide { courses: [...] } with course data",
+          error: "Provide { useBundledSheet: true } (recommended) or { courses: [...] }",
         }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
-
-    console.log(`Payload sync: processing ${courses.length} courses...`);
 
     const results = {
       updated: 0,
@@ -253,9 +338,28 @@ Deno.serve(async (req) => {
       failed: 0,
       matchedBySlug: 0,
       matchedByTitle: 0,
-      totalCourses: courses.length,
+      matchedByTitleIlike: 0,
+      processed: courses.length,
+      offset: useBundledSheet ? offset : null,
+      limit: useBundledSheet ? limit : null,
+      totalInSheet,
       errors: [] as string[],
     };
+
+    // Build a fast lookup index once (avoids 1000s of DB queries)
+    const courseIndex = await loadCourseIndex(supabase);
+
+    type CoursePatch = {
+      id: string;
+      description?: string;
+      curriculum?: string;
+      learning_outcomes?: string;
+      who_should_take?: string;
+      duration?: string;
+      image_url?: string;
+    };
+
+    const patches: CoursePatch[] = [];
 
     for (const course of courses) {
       const name = course.name ?? course.title;
@@ -269,7 +373,7 @@ Deno.serve(async (req) => {
       const imageUrl = extractImageUrl(course.image ?? "");
       const duration = course.duration ? cleanHtml(course.duration) : "";
 
-      const updateData: Record<string, string | null> = {};
+      const updateData: Omit<CoursePatch, "id"> = {};
 
       if (description) updateData.description = description;
       if (curriculum) updateData.curriculum = curriculum;
@@ -283,40 +387,41 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const resolved = await resolveCourseId(supabase, slug, name);
-
+      const resolved = resolveCourseIdFromIndex(courseIndex, slug, name);
       if (!resolved) {
         results.notFound++;
         continue;
       }
 
       if (resolved.matchedBy === "slug") results.matchedBySlug++;
-      else results.matchedByTitle++;
+      else if (resolved.matchedBy === "title") results.matchedByTitle++;
+      else results.matchedByTitleIlike++;
 
-      const { data, error } = await supabase
-        .from("courses")
-        .update(updateData)
-        .eq("id", resolved.id)
-        .select("id")
-        .limit(1);
+      patches.push({ id: resolved.id, ...updateData });
+    }
 
+    if (patches.length === 0) {
+      console.log(
+        `Completed: updated=0 skipped=${results.skipped} notFound=${results.notFound} failed=0 (no patches)`
+      );
+      return new Response(JSON.stringify(results), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Upsert in chunks to keep request payloads reasonable
+    const CHUNK = 500;
+    for (let i = 0; i < patches.length; i += CHUNK) {
+      const chunk = patches.slice(i, i + CHUNK);
+      const { error } = await supabase.from("courses").upsert(chunk, { onConflict: "id" });
       if (error) {
-        results.failed++;
+        results.failed += chunk.length;
         if (results.errors.length < 30) {
-          results.errors.push(`${name ?? slug ?? "unknown"}: ${error.message}`);
+          results.errors.push(`Chunk ${i}-${i + chunk.length}: ${error.message}`);
         }
-        continue;
+      } else {
+        results.updated += chunk.length;
       }
-
-      if (!data || data.length === 0) {
-        results.failed++;
-        if (results.errors.length < 30) {
-          results.errors.push(`${name ?? slug ?? "unknown"}: update returned no rows`);
-        }
-        continue;
-      }
-
-      results.updated++;
     }
 
     console.log(
