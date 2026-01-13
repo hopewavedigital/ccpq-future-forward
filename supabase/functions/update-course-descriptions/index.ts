@@ -170,58 +170,19 @@ function extractWhoShouldTake(content: string): string | null {
   return null;
 }
 
-function parseBundledSheet(markdown: string): ParsedSheetCourse[] {
-  const lines = markdown.split(/\r?\n/);
-  const courses: ParsedSheetCourse[] = [];
+type CourseRow = { id: string; slug: string; title: string };
 
-  for (const line of lines) {
-    if (!line.startsWith("|")) continue;
-    if (line.includes("|Course Name|")) continue;
-    if (line.startsWith("|-")) continue;
-
-    const parts = line.split("|").slice(1, -1).map((p) => p.trim());
-    if (parts.length < 6) continue;
-
-    const name = parts[0];
-    const link = stripAngleBrackets(parts[1]);
-
-    // Handle possible stray pipes in content by anchoring last 3 columns.
-    const duration = parts[parts.length - 2] ?? "";
-    const image = parts[parts.length - 1] ?? "";
-    const curriculum = parts[parts.length - 3] ?? "";
-    const content = parts.slice(2, parts.length - 3).join("|");
-
-    if (!name || !link) continue;
-
-    courses.push({
-      name,
-      link,
-      content,
-      curriculum,
-      duration,
-      image,
-    });
-  }
-
-  return courses;
-}
-
-async function loadBundledCourses(): Promise<ParsedSheetCourse[]> {
-  const url = new URL("./course_sheet_parsed.md", import.meta.url);
-  const text = await Deno.readTextFile(url);
-  return parseBundledSheet(text);
-}
-
-async function resolveCourseId(supabase: ReturnType<typeof createClient>, slug: string | null, name: string | undefined) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function resolveCourseId(supabase: any, slug: string | null, name: string | undefined) {
   if (slug) {
     const { data } = await supabase
       .from("courses")
       .select("id, slug, title")
       .eq("slug", slug)
-      .limit(1);
+      .limit(1) as { data: CourseRow[] | null };
 
     if (data && data.length === 1) {
-      return { id: data[0].id as string, matchedBy: "slug" as const };
+      return { id: data[0].id, matchedBy: "slug" as const };
     }
   }
 
@@ -229,11 +190,13 @@ async function resolveCourseId(supabase: ReturnType<typeof createClient>, slug: 
     const title = normalizeWhitespace(name);
 
     // Exact title match (case-sensitive) first
-    let { data } = await supabase
+    const result = await supabase
       .from("courses")
       .select("id, slug, title")
       .eq("title", title)
-      .limit(2);
+      .limit(2) as { data: CourseRow[] | null };
+
+    let data = result.data;
 
     if (!data || data.length === 0) {
       // Case-insensitive exact-ish match
@@ -241,12 +204,12 @@ async function resolveCourseId(supabase: ReturnType<typeof createClient>, slug: 
         .from("courses")
         .select("id, slug, title")
         .ilike("title", title)
-        .limit(2);
+        .limit(2) as { data: CourseRow[] | null };
       data = res.data;
     }
 
     if (data && data.length === 1) {
-      return { id: data[0].id as string, matchedBy: "title" as const };
+      return { id: data[0].id, matchedBy: "title" as const };
     }
   }
 
@@ -265,32 +228,14 @@ Deno.serve(async (req) => {
 
     const body = (await req.json().catch(() => ({}))) as {
       courses?: IncomingCourse[];
-      useBundledSheet?: boolean;
-      offset?: number;
-      limit?: number;
     };
 
-    const useBundledSheet = body.useBundledSheet === true;
-    const offset = Math.max(0, Number(body.offset ?? 0) || 0);
-    const limit = Math.min(1000, Math.max(1, Number(body.limit ?? 250) || 250));
-
-    let courses: IncomingCourse[] | null = null;
-    let totalInSheet: number | null = null;
-
-    if (useBundledSheet) {
-      const all = await loadBundledCourses();
-      totalInSheet = all.length;
-      courses = all.slice(offset, offset + limit);
-      console.log(`Bundled sync: total=${totalInSheet} offset=${offset} limit=${limit}`);
-    } else if (Array.isArray(body.courses)) {
-      courses = body.courses;
-      console.log(`Payload sync: processing ${courses.length} courses...`);
-    }
+    const courses = body.courses;
 
     if (!courses || !Array.isArray(courses)) {
       return new Response(
         JSON.stringify({
-          error: "Provide { courses: [...] } or { useBundledSheet: true, offset, limit }",
+          error: "Provide { courses: [...] } with course data",
         }),
         {
           status: 400,
@@ -299,6 +244,8 @@ Deno.serve(async (req) => {
       );
     }
 
+    console.log(`Payload sync: processing ${courses.length} courses...`);
+
     const results = {
       updated: 0,
       skipped: 0,
@@ -306,9 +253,7 @@ Deno.serve(async (req) => {
       failed: 0,
       matchedBySlug: 0,
       matchedByTitle: 0,
-      offset: useBundledSheet ? offset : null,
-      limit: useBundledSheet ? limit : null,
-      totalInSheet,
+      totalCourses: courses.length,
       errors: [] as string[],
     };
 
