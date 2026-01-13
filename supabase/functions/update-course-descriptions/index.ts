@@ -15,23 +15,12 @@ type IncomingCourse = {
   image?: string;
 };
 
-type ParsedSheetCourse = Required<
-  Pick<IncomingCourse, "name" | "link" | "content" | "curriculum" | "duration" | "image">
->;
-
 type CourseRow = { id: string; slug: string | null; title: string };
 
 function normalizeWhitespace(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
 
-function stripAngleBrackets(value: string): string {
-  const v = value.trim();
-  if (v.startsWith("<") && v.endsWith(">")) return v.slice(1, -1);
-  return v;
-}
-
-// Extract slug from URL like https://course-hosting.com/course/xyz/
 function extractSlugFromUrl(url: string): string | null {
   if (!url) return null;
   try {
@@ -51,12 +40,10 @@ function extractFirstUrl(value: string): string | null {
 function extractImageUrl(cell: string): string | null {
   const url = extractFirstUrl(cell);
   if (!url) return null;
-  // Avoid the generic folder link if present
   if (url.includes("drive.google.com/drive") && url.includes("/folders/")) return null;
   return url;
 }
 
-// Clean HTML tags and convert <br> to newlines
 function cleanHtml(text: string): string {
   if (!text) return "";
   return text
@@ -146,7 +133,6 @@ function extractWhoShouldTake(content: string): string | null {
     /Who [Ss]hould [Tt]ake[^:]*[:\s]*([\s\S]*?)(?=Certification|Learning Outcomes|Assessment|Accreditation|Key Features|$)/i,
     /Who is this course for\??[:\s]*([\s\S]*?)(?=Certification|Learning Outcomes|Assessment|Accreditation|$)/i,
     /Who Should Take This Course[:\s]*([\s\S]*?)(?=Certification|Learning Outcomes|Assessment|Accreditation|$)/i,
-    /Who Should Take the course[:\s]*([\s\S]*?)(?=Certification|Learning Outcomes|Assessment|Accreditation|$)/i,
   ];
 
   for (const pattern of patterns) {
@@ -157,7 +143,6 @@ function extractWhoShouldTake(content: string): string | null {
         .map((line) => line.trim())
         .filter((line) => {
           if (line.length === 0) return false;
-          // Remove generic filler lines that appear in some course pages
           if (line.match(/^Anyone with a knack for learning/i)) return false;
           if (line.match(/^While this comprehensive training/i)) return false;
           return true;
@@ -170,43 +155,8 @@ function extractWhoShouldTake(content: string): string | null {
   return null;
 }
 
-function parseBundledSheet(markdown: string): ParsedSheetCourse[] {
-  const lines = markdown.split(/\r?\n/);
-  const courses: ParsedSheetCourse[] = [];
-
-  for (const line of lines) {
-    if (!line.startsWith("|")) continue;
-    if (line.includes("|Course Name|")) continue;
-    if (line.startsWith("|-") || line.startsWith("|-")) continue;
-
-    const parts = line.split("|").slice(1, -1).map((p) => p.trim());
-    if (parts.length < 5) continue;
-
-    const name = parts[0] ?? "";
-    const link = stripAngleBrackets(parts[1] ?? "");
-
-    // Handle possible stray pipes in content by anchoring last 3 columns.
-    const duration = parts[parts.length - 2] ?? "";
-    const image = parts[parts.length - 1] ?? "";
-    const curriculum = parts[parts.length - 3] ?? "";
-    const content = parts.slice(2, parts.length - 3).join("|");
-
-    if (!name || !link) continue;
-
-    courses.push({ name, link, content, curriculum, duration, image });
-  }
-
-  return courses;
-}
-
-async function loadBundledCourses(): Promise<ParsedSheetCourse[]> {
-  const url = new URL("./course_sheet_parsed.md", import.meta.url);
-  const text = await Deno.readTextFile(url);
-  return parseBundledSheet(text);
-}
-
 async function loadCourseIndex(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // deno-lint-ignore no-explicit-any
   supabase: any,
 ): Promise<{
   bySlug: Map<string, string>;
@@ -214,7 +164,6 @@ async function loadCourseIndex(
   byTitleLower: Map<string, string>;
 }> {
   const bySlug = new Map<string, string>();
-
   const titleCounts = new Map<string, { id: string; count: number }>();
   const titleLowerCounts = new Map<string, { id: string; count: number }>();
 
@@ -297,39 +246,20 @@ Deno.serve(async (req) => {
 
     const body = (await req.json().catch(() => ({}))) as {
       courses?: IncomingCourse[];
-      useBundledSheet?: boolean;
-      offset?: number;
-      limit?: number;
     };
 
-    const useBundledSheet = body.useBundledSheet === true;
-    const offset = Math.max(0, Number(body.offset ?? 0) || 0);
-    const limitRaw = body.limit == null ? null : Math.max(1, Number(body.limit) || 0);
-    const limit = limitRaw == null ? null : Math.min(5000, limitRaw);
+    const courses = body.courses;
 
-    let courses: IncomingCourse[] | null = null;
-    let totalInSheet: number | null = null;
-
-    if (useBundledSheet) {
-      const all = await loadBundledCourses();
-      totalInSheet = all.length;
-      courses = limit == null ? all : all.slice(offset, offset + limit);
-      console.log(
-        `Bundled sync: total=${totalInSheet} offset=${offset} limit=${limit ?? "ALL"} processing=${courses.length}`,
-      );
-    } else if (Array.isArray(body.courses)) {
-      courses = body.courses;
-      console.log(`Payload sync: processing ${courses.length} courses...`);
-    }
-
-    if (!courses || !Array.isArray(courses)) {
+    if (!courses || !Array.isArray(courses) || courses.length === 0) {
       return new Response(
         JSON.stringify({
-          error: "Provide { useBundledSheet: true } (recommended) or { courses: [...] }",
+          error: "Provide { courses: [...] } with course data",
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
+
+    console.log(`Processing ${courses.length} courses...`);
 
     const results = {
       updated: 0,
@@ -340,13 +270,9 @@ Deno.serve(async (req) => {
       matchedByTitle: 0,
       matchedByTitleIlike: 0,
       processed: courses.length,
-      offset: useBundledSheet ? offset : null,
-      limit: useBundledSheet ? limit : null,
-      totalInSheet,
       errors: [] as string[],
     };
 
-    // Build a fast lookup index once (avoids 1000s of DB queries)
     const courseIndex = await loadCourseIndex(supabase);
 
     type CoursePatch = {
@@ -409,7 +335,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Upsert in chunks to keep request payloads reasonable
     const CHUNK = 500;
     for (let i = 0; i < patches.length; i += CHUNK) {
       const chunk = patches.slice(i, i + CHUNK);
