@@ -9,11 +9,43 @@ type IncomingCourse = {
   name?: string;
   title?: string;
   link?: string;
+  url?: string;
   content?: string;
   curriculum?: string;
   duration?: string;
   image?: string;
 };
+
+function parseMarkdownTable(markdown: string): IncomingCourse[] {
+  const lines = markdown.split("\n").filter((line) => line.startsWith("|"));
+  if (lines.length < 2) return [];
+  
+  // Skip header row and separator row
+  const dataLines = lines.slice(2);
+  const courses: IncomingCourse[] = [];
+  
+  for (const line of dataLines) {
+    const cells = line.split("|").slice(1, -1).map((c) => c.trim());
+    if (cells.length < 5) continue;
+    
+    const [name, link, content, curriculum, duration, image] = cells;
+    
+    // Extract URL from markdown link format like <https://...>
+    const urlMatch = link?.match(/<?(https?:\/\/[^>\s]+)>?/);
+    const url = urlMatch ? urlMatch[1] : link;
+    
+    courses.push({
+      name: name || undefined,
+      link: url || undefined,
+      content: content || undefined,
+      curriculum: curriculum || undefined,
+      duration: duration || undefined,
+      image: image || undefined,
+    });
+  }
+  
+  return courses;
+}
 
 type CourseRow = { id: string; slug: string | null; title: string };
 
@@ -246,14 +278,19 @@ Deno.serve(async (req) => {
 
     const body = (await req.json().catch(() => ({}))) as {
       courses?: IncomingCourse[];
+      markdown?: string;
     };
 
-    const courses = body.courses;
+    // Support both JSON array and markdown table input
+    let courses = body.courses;
+    if (body.markdown && typeof body.markdown === "string") {
+      courses = parseMarkdownTable(body.markdown);
+    }
 
     if (!courses || !Array.isArray(courses) || courses.length === 0) {
       return new Response(
         JSON.stringify({
-          error: "Provide { courses: [...] } with course data",
+          error: "Provide { courses: [...] } or { markdown: '...' } with course data",
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
@@ -335,17 +372,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    const CHUNK = 500;
-    for (let i = 0; i < patches.length; i += CHUNK) {
-      const chunk = patches.slice(i, i + CHUNK);
-      const { error } = await supabase.from("courses").upsert(chunk, { onConflict: "id" });
+    // Update each course individually (not upsert) to avoid NOT NULL violations
+    for (const patch of patches) {
+      const { id, ...updateData } = patch;
+      const { error } = await supabase.from("courses").update(updateData).eq("id", id);
       if (error) {
-        results.failed += chunk.length;
+        results.failed++;
         if (results.errors.length < 30) {
-          results.errors.push(`Chunk ${i}-${i + chunk.length}: ${error.message}`);
+          results.errors.push(`${id}: ${error.message}`);
         }
       } else {
-        results.updated += chunk.length;
+        results.updated++;
       }
     }
 
