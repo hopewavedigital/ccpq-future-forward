@@ -7,7 +7,8 @@ import { ArrowRight, Loader2 } from 'lucide-react';
 export function FeaturedCoursesSection() {
   const { data: courses, isLoading } = useCourses();
 
-  const featuredCourses = courses?.slice(0, 6) || [];
+  // Only show courses that have images, limited to 6
+  const featuredCourses = courses?.filter(course => course.image_url).slice(0, 6) || [];
 
   return (
     <section className="section-padding">
