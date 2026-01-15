@@ -50,6 +50,9 @@ const Courses = () => {
     );
   }, [courses, searchQuery]);
 
+  // When searching, show all results together; otherwise split by type
+  const isSearching = searchQuery.trim().length > 0;
+  
   const diplomas = filteredCourses.filter((c) => c.course_type === 'diploma');
   const shortCourses = filteredCourses.filter((c) => c.course_type === 'short_course');
 
@@ -106,6 +109,46 @@ const Courses = () => {
             <div className="flex justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-accent" />
             </div>
+          ) : isSearching ? (
+            /* When searching, show all results in one list */
+            <>
+              {filteredCourses.length > 0 ? (
+                <div>
+                  <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-2 mb-6">
+                    <h2 className="text-2xl font-display font-bold">
+                      Search Results
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                      Found {filteredCourses.length} course{filteredCourses.length !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col gap-3">
+                    {filteredCourses.slice(0, visibleDiplomas + visibleShortCourses).map((course, index) => (
+                      <CourseListItem key={course.id} course={course} index={index} />
+                    ))}
+                  </div>
+
+                  {filteredCourses.length > visibleDiplomas + visibleShortCourses && (
+                    <div className="mt-8 flex justify-center">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setVisibleDiplomas((v) => v + STEP);
+                          setVisibleShortCourses((v) => v + STEP);
+                        }}
+                      >
+                        Load more ({filteredCourses.length - (visibleDiplomas + visibleShortCourses)} remaining)
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">No courses found matching "{searchQuery}".</p>
+                </div>
+              )}
+            </>
           ) : (
             <>
               {/* Diplomas */}
