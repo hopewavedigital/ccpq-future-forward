@@ -29,7 +29,7 @@ export function Footer() {
               <a href="https://www.facebook.com/share/1JxAKx3L8T/" target="_blank" rel="noopener noreferrer" className="text-primary-foreground/60 hover:text-primary-foreground transition-colors">
                 <Facebook className="h-5 w-5" />
               </a>
-              <a href="https://instagram.com/ccpq" target="_blank" rel="noopener noreferrer" className="text-primary-foreground/60 hover:text-primary-foreground transition-colors">
+              <a href="https://instagram.com/ccpqofficial" target="_blank" rel="noopener noreferrer" className="text-primary-foreground/60 hover:text-primary-foreground transition-colors">
                 <Instagram className="h-5 w-5" />
               </a>
             </div>
