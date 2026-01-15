@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Mail, Phone, MapPin, Facebook } from 'lucide-react';
+import { Mail, Phone, MapPin, Facebook, Instagram } from 'lucide-react';
 import ccpqLogo from '@/assets/ccpq-logo-new.png';
 import accreditationBadge from '@/assets/ccpq-accreditation.png';
 
@@ -28,6 +28,9 @@ export function Footer() {
             <div className="flex gap-4">
               <a href="https://www.facebook.com/share/1JxAKx3L8T/" target="_blank" rel="noopener noreferrer" className="text-primary-foreground/60 hover:text-primary-foreground transition-colors">
                 <Facebook className="h-5 w-5" />
+              </a>
+              <a href="https://instagram.com/ccpq" target="_blank" rel="noopener noreferrer" className="text-primary-foreground/60 hover:text-primary-foreground transition-colors">
+                <Instagram className="h-5 w-5" />
               </a>
             </div>
           </div>
