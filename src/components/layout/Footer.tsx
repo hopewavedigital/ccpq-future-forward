@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Mail, Phone, MapPin, Facebook, Twitter, Linkedin, Instagram } from 'lucide-react';
+import { Mail, Phone, MapPin, Facebook } from 'lucide-react';
 import ccpqLogo from '@/assets/ccpq-logo-new.png';
 import accreditationBadge from '@/assets/ccpq-accreditation.png';
 
@@ -26,17 +26,8 @@ export function Footer() {
               Centre for Certified Professional Qualifications. Empowering your future through accessible online learning.
             </p>
             <div className="flex gap-4">
-              <a href="#" className="text-primary-foreground/60 hover:text-primary-foreground transition-colors">
+              <a href="https://www.facebook.com/share/1JxAKx3L8T/" target="_blank" rel="noopener noreferrer" className="text-primary-foreground/60 hover:text-primary-foreground transition-colors">
                 <Facebook className="h-5 w-5" />
-              </a>
-              <a href="#" className="text-primary-foreground/60 hover:text-primary-foreground transition-colors">
-                <Twitter className="h-5 w-5" />
-              </a>
-              <a href="#" className="text-primary-foreground/60 hover:text-primary-foreground transition-colors">
-                <Linkedin className="h-5 w-5" />
-              </a>
-              <a href="#" className="text-primary-foreground/60 hover:text-primary-foreground transition-colors">
-                <Instagram className="h-5 w-5" />
               </a>
             </div>
           </div>
