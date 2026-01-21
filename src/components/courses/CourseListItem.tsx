@@ -20,57 +20,56 @@ export function CourseListItem({ course, index = 0 }: CourseListItemProps) {
 
   return (
     <div
-      className="bg-card rounded-lg overflow-hidden shadow-sm border border-border hover:shadow-md transition-shadow animate-slide-up flex flex-col sm:flex-row"
+      className="bg-card rounded-lg overflow-hidden shadow-sm border border-border hover:shadow-md transition-shadow animate-slide-up"
       style={{ animationDelay: `${index * 30}ms` }}
     >
       {/* Content */}
-      <div className="flex-1 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4">
-        {/* Left: Title and meta */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            {course.category && (
-              <span className="text-xs font-medium text-accent uppercase tracking-wider">
-                {course.category.name}
-              </span>
-            )}
-            <Badge
-              variant={course.course_type === 'diploma' ? 'default' : 'secondary'}
-              className={`text-xs ${course.course_type === 'diploma' ? 'bg-accent' : ''}`}
-            >
-              {course.course_type === 'diploma' ? 'Diploma' : 'Certificate'}
-            </Badge>
-          </div>
+      <div className="p-4 sm:p-5">
+        {/* Top row: Category and badge */}
+        <div className="flex flex-wrap items-center gap-2 mb-2">
+          {course.category && (
+            <span className="text-xs font-medium text-accent uppercase tracking-wider">
+              {course.category.name}
+            </span>
+          )}
+          <Badge
+            variant={course.course_type === 'diploma' ? 'default' : 'secondary'}
+            className={`text-xs ${course.course_type === 'diploma' ? 'bg-accent' : ''}`}
+          >
+            {course.course_type === 'diploma' ? 'Diploma' : 'Certificate'}
+          </Badge>
+        </div>
 
-          <h3 className="text-base font-display font-semibold text-foreground truncate">
-            {course.title}
-          </h3>
+        {/* Title - allows wrapping on mobile */}
+        <h3 className="text-base sm:text-lg font-display font-semibold text-foreground mb-2 line-clamp-2 sm:line-clamp-1">
+          {course.title}
+        </h3>
 
-          {/* Meta */}
-          <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
-            {course.duration && (
-              <div className="flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5 text-primary" />
-                <span>{course.duration}</span>
-              </div>
-            )}
-            {course.module_count > 0 && (
-              <div className="flex items-center gap-1">
-                <BookOpen className="h-3.5 w-3.5 text-primary" />
-                <span>{course.module_count} Modules</span>
-              </div>
-            )}
+        {/* Meta row */}
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm text-muted-foreground mb-3">
+          {course.duration && (
             <div className="flex items-center gap-1">
-              <Award className="h-3.5 w-3.5 text-primary" />
-              <span>CPD Accredited</span>
+              <Clock className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+              <span>{course.duration}</span>
             </div>
+          )}
+          {course.module_count > 0 && (
+            <div className="flex items-center gap-1">
+              <BookOpen className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+              <span>{course.module_count} Modules</span>
+            </div>
+          )}
+          <div className="flex items-center gap-1">
+            <Award className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+            <span>CPD Accredited</span>
           </div>
         </div>
 
-        {/* Right: Price and CTA */}
-        <div className="flex items-center gap-4 sm:flex-shrink-0">
+        {/* Bottom row: Price and CTA - stacked on mobile, row on larger screens */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="text-lg font-bold text-primary">{formatPrice(course.price)}</div>
-          <Link to={`/courses/${course.slug}`}>
-            <Button size="sm" className="gap-1 whitespace-nowrap">
+          <Link to={`/courses/${course.slug}`} className="w-full sm:w-auto">
+            <Button size="sm" className="gap-1 whitespace-nowrap w-full sm:w-auto">
               View Course
               <ArrowRight className="h-4 w-4" />
             </Button>
