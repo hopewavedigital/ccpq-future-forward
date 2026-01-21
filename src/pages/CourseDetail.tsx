@@ -144,7 +144,7 @@ const CourseDetail = () => {
                       ) : (
                         <>
                           <CreditCard className="h-4 w-4" />
-                          Pay with PayPal
+                          Purchase Course
                         </>
                       )}
                     </Button>
