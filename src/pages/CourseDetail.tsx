@@ -8,7 +8,7 @@ import { useCourse } from '@/hooks/useCourses';
 import { useEnrollment } from '@/hooks/useEnrollments';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Clock, Tag, Check, ArrowRight, Loader2, CreditCard } from 'lucide-react';
+import { Clock, Tag, Check, ArrowRight, Loader2, CreditCard, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 const CourseDetail = () => {
@@ -97,15 +97,16 @@ const CourseDetail = () => {
 
   return (
     <Layout>
-      <section className="hero-gradient text-primary-foreground py-16">
-        <div className="container-custom">
+      {/* Hero - Mobile optimized */}
+      <section className="hero-gradient text-primary-foreground py-10 md:py-16">
+        <div className="container-custom px-4 md:px-6">
           <div className="max-w-3xl">
-            <Badge className={course.course_type === 'diploma' ? 'bg-accent mb-4' : 'mb-4'}>
+            <Badge className={`${course.course_type === 'diploma' ? 'bg-accent' : ''} mb-3 md:mb-4`}>
               {course.course_type === 'diploma' ? 'Diploma' : 'Certificate Course'}
             </Badge>
-            <h1 className="text-3xl md:text-4xl font-display font-bold mb-4">{course.title}</h1>
-            <p className="text-lg text-primary-foreground/80 mb-6">{heroSummary}</p>
-            <div className="flex flex-wrap gap-4 text-sm">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold mb-3 md:mb-4 leading-tight">{course.title}</h1>
+            <p className="text-base md:text-lg text-primary-foreground/80 mb-4 md:mb-6">{heroSummary}</p>
+            <div className="flex flex-wrap gap-3 md:gap-4 text-sm">
               {course.duration && (
                 <div className="flex items-center gap-2"><Clock className="h-4 w-4" />{course.duration}</div>
               )}
@@ -115,32 +116,14 @@ const CourseDetail = () => {
         </div>
       </section>
 
-      <section className="section-padding">
-        <div className="container-custom">
-          <div className="grid lg:grid-cols-3 gap-12">
-            <div className="lg:col-span-2">
-              {/* Course Image */}
-              <div className="mb-8 rounded-xl overflow-hidden">
-                <img
-                  src={course.image_url || getSeededCourseCover(course.title, course.slug)}
-                  alt={course.title}
-                  loading="lazy"
-                  decoding="async"
-                  className="w-full h-64 md:h-80 object-cover"
-                />
-              </div>
-
-              <CourseDetailTabs
-                description={course.description}
-                curriculum={course.curriculum}
-                learningOutcomes={course.learning_outcomes}
-                whoShouldTake={course.who_should_take}
-              />
-            </div>
-
-            <div>
-              <div className="bg-card p-6 rounded-xl shadow-card sticky top-24">
-                <div className="text-3xl font-display font-bold text-foreground mb-2">{formatPrice(course.price)}</div>
+      <section className="py-8 md:section-padding">
+        <div className="container-custom px-4 md:px-6">
+          {/* Mobile: Sidebar first, then content. Desktop: Content first */}
+          <div className="grid lg:grid-cols-3 gap-6 md:gap-12">
+            {/* Sidebar - Shows first on mobile */}
+            <div className="order-1 lg:order-2">
+              <div className="bg-card p-5 md:p-6 rounded-xl shadow-card lg:sticky lg:top-24">
+                <div className="text-2xl md:text-3xl font-display font-bold text-foreground mb-2">{formatPrice(course.price)}</div>
                 <p className="text-sm text-muted-foreground mb-4">Secure payment via PayPal</p>
 
                 {enrollment ? (
@@ -166,6 +149,14 @@ const CourseDetail = () => {
                       )}
                     </Button>
 
+                    {/* WhatsApp bulk discount message */}
+                    <div className="mt-4 p-3 bg-muted/50 rounded-lg border border-border">
+                      <p className="text-xs md:text-sm text-muted-foreground text-center flex items-center justify-center gap-2">
+                        <MessageCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+                        <span>Click the WhatsApp button below to discuss discounts for bulk bookings</span>
+                      </p>
+                    </div>
+
                     {!user && (
                       <p className="text-xs text-muted-foreground mt-3 text-center">
                         You'll be asked to create an account after payment
@@ -174,28 +165,49 @@ const CourseDetail = () => {
                   </>
                 )}
 
-                <div className="mt-6 pt-6 border-t border-border">
-                  <h4 className="font-semibold mb-3">This course includes:</h4>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
+                <div className="mt-5 md:mt-6 pt-5 md:pt-6 border-t border-border">
+                  <h4 className="font-semibold mb-3 text-sm md:text-base">This course includes:</h4>
+                  <ul className="space-y-2 text-xs md:text-sm text-muted-foreground">
                     <li className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-accent" />
+                      <Check className="h-4 w-4 text-accent flex-shrink-0" />
                       Full online access
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-accent" />
+                      <Check className="h-4 w-4 text-accent flex-shrink-0" />
                       Certificate on completion
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-accent" />
+                      <Check className="h-4 w-4 text-accent flex-shrink-0" />
                       Study at your own pace
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-accent" />
+                      <Check className="h-4 w-4 text-accent flex-shrink-0" />
                       Student support
                     </li>
                   </ul>
                 </div>
               </div>
+            </div>
+
+            {/* Main content - Shows second on mobile */}
+            <div className="lg:col-span-2 order-2 lg:order-1">
+              {/* Course Image */}
+              <div className="mb-6 md:mb-8 rounded-xl overflow-hidden">
+                <img
+                  src={course.image_url || getSeededCourseCover(course.title, course.slug)}
+                  alt={course.title}
+                  loading="lazy"
+                  decoding="async"
+                  className="w-full h-48 sm:h-64 md:h-80 object-cover"
+                />
+              </div>
+
+              <CourseDetailTabs
+                description={course.description}
+                curriculum={course.curriculum}
+                learningOutcomes={course.learning_outcomes}
+                whoShouldTake={course.who_should_take}
+              />
             </div>
           </div>
         </div>
