@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Menu, X, User, LogOut, BookOpen } from 'lucide-react';
+import { Menu, X, User, LogOut, BookOpen, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { useIsAdmin } from '@/hooks/useAdminData';
 import ccpqLogo from '@/assets/ccpq-logo-new.png';
 import {
   DropdownMenu,
@@ -23,6 +24,7 @@ const navLinks = [
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, profile, signOut } = useAuth();
+  const { data: isAdmin } = useIsAdmin();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -66,6 +68,15 @@ export function Header() {
                   <BookOpen className="h-4 w-4 mr-2" />
                   My Courses
                 </DropdownMenuItem>
+                {isAdmin && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate('/admin')}>
+                      <Shield className="h-4 w-4 mr-2" />
+                      Admin Panel
+                    </DropdownMenuItem>
+                  </>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut}>
                   <LogOut className="h-4 w-4 mr-2" />
@@ -122,6 +133,14 @@ export function Header() {
                       My Courses
                     </Button>
                   </Link>
+                  {isAdmin && (
+                    <Link to="/admin" onClick={() => setMobileMenuOpen(false)}>
+                      <Button variant="outline" className="w-full justify-start gap-2">
+                        <Shield className="h-4 w-4" />
+                        Admin Panel
+                      </Button>
+                    </Link>
+                  )}
                   <Button
                     variant="ghost"
                     className="w-full justify-start gap-2"
