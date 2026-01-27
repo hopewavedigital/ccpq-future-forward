@@ -1,5 +1,6 @@
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useAdminEnrollments } from '@/hooks/useAdminData';
+import { ManualEnrollmentDialog } from '@/components/admin/ManualEnrollmentDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -12,9 +13,12 @@ export default function AdminEnrollments() {
   return (
     <AdminLayout>
       <div className="p-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-display font-bold">Enrollments</h1>
-          <p className="text-muted-foreground">Track all student enrollments</p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-display font-bold">Enrollments</h1>
+            <p className="text-muted-foreground">Track all student enrollments</p>
+          </div>
+          <ManualEnrollmentDialog />
         </div>
 
         <Card>
