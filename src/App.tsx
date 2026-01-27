@@ -18,6 +18,7 @@ import PaymentSuccess from "./pages/PaymentSuccess";
 import NotFound from "./pages/NotFound";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminCourses from "./pages/admin/AdminCourses";
+import AdminContent from "./pages/admin/AdminContent";
 import AdminEnrollments from "./pages/admin/AdminEnrollments";
 import AdminStudents from "./pages/admin/AdminStudents";
 import AdminProgress from "./pages/admin/AdminProgress";
@@ -46,6 +47,7 @@ const App = () => (
             {/* Admin Routes */}
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/courses" element={<AdminCourses />} />
+            <Route path="/admin/content" element={<AdminContent />} />
             <Route path="/admin/enrollments" element={<AdminEnrollments />} />
             <Route path="/admin/students" element={<AdminStudents />} />
             <Route path="/admin/progress" element={<AdminProgress />} />

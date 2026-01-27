@@ -6,7 +6,8 @@ import {
   GraduationCap, 
   BarChart3, 
   Settings,
-  LogOut
+  LogOut,
+  FileVideo
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -14,6 +15,7 @@ import { cn } from '@/lib/utils';
 const navItems = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { href: '/admin/courses', label: 'Courses', icon: BookOpen },
+  { href: '/admin/content', label: 'Course Content', icon: FileVideo },
   { href: '/admin/enrollments', label: 'Enrollments', icon: GraduationCap },
   { href: '/admin/students', label: 'Students', icon: Users },
   { href: '/admin/progress', label: 'Progress', icon: BarChart3 },
