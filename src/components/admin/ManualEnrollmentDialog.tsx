@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, UserPlus, ExternalLink, CreditCard } from 'lucide-react';
+import { Loader2, UserPlus, ExternalLink, CreditCard, Plus } from 'lucide-react';
 
 export function ManualEnrollmentDialog() {
   const [open, setOpen] = useState(false);
@@ -18,11 +19,67 @@ export function ManualEnrollmentDialog() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isProcessingPayPal, setIsProcessingPayPal] = useState(false);
   
+  // New student creation state
+  const [showCreateStudent, setShowCreateStudent] = useState(false);
+  const [newStudentEmail, setNewStudentEmail] = useState('');
+  const [newStudentName, setNewStudentName] = useState('');
+  const [isCreatingStudent, setIsCreatingStudent] = useState(false);
+  
   const queryClient = useQueryClient();
   const { data: profiles, isLoading: profilesLoading } = useAdminProfiles();
   const { data: courses, isLoading: coursesLoading } = useAdminCourses();
 
   const selectedCourseData = courses?.find((c: any) => c.id === selectedCourse);
+
+  const handleCreateStudent = async () => {
+    if (!newStudentEmail.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Email is required',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsCreatingStudent(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('create-student', {
+        body: {
+          email: newStudentEmail.trim(),
+          fullName: newStudentName.trim() || null,
+        },
+      });
+
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+
+      toast({
+        title: 'Student Created',
+        description: `Account created for ${newStudentEmail}. Temporary password: ${data.temporaryPassword}`,
+      });
+
+      // Refresh profiles list
+      await queryClient.invalidateQueries({ queryKey: ['admin-profiles'] });
+      
+      // Select the newly created user
+      setSelectedUser(data.user.id);
+      
+      // Reset create form
+      setShowCreateStudent(false);
+      setNewStudentEmail('');
+      setNewStudentName('');
+    } catch (error: any) {
+      console.error('Create student error:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to create student',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsCreatingStudent(false);
+    }
+  };
 
   const handlePayPalPayment = async () => {
     if (!selectedCourseData) return;
@@ -43,7 +100,6 @@ export function ManualEnrollmentDialog() {
       if (error) throw error;
 
       if (data?.approvalUrl) {
-        // Open PayPal in new tab
         window.open(data.approvalUrl, '_blank');
         toast({
           title: 'PayPal Opened',
@@ -79,7 +135,6 @@ export function ManualEnrollmentDialog() {
     setIsSubmitting(true);
 
     try {
-      // Check if enrollment already exists
       const { data: existing } = await supabase
         .from('enrollments')
         .select('id')
@@ -97,7 +152,6 @@ export function ManualEnrollmentDialog() {
         return;
       }
 
-      // Create enrollment
       const { error } = await supabase
         .from('enrollments')
         .insert({
@@ -112,11 +166,9 @@ export function ManualEnrollmentDialog() {
         description: 'Student has been enrolled and now has access to the course content',
       });
 
-      // Refresh the enrollments list
       queryClient.invalidateQueries({ queryKey: ['admin-enrollments'] });
       queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
       
-      // Reset and close
       setSelectedUser('');
       setSelectedCourse('');
       setPaymentReceived(false);
@@ -147,20 +199,77 @@ export function ManualEnrollmentDialog() {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div className="space-y-2">
-            <Label htmlFor="student">Student</Label>
-            <Select value={selectedUser} onValueChange={setSelectedUser}>
-              <SelectTrigger>
-                <SelectValue placeholder={profilesLoading ? "Loading..." : "Select a student"} />
-              </SelectTrigger>
-              <SelectContent>
-                {profiles?.map((profile: any) => (
-                  <SelectItem key={profile.user_id} value={profile.user_id}>
-                    {profile.full_name || 'Unnamed User'} 
-                    {profile.user_roles?.[0]?.role === 'admin' && ' (Admin)'}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="student">Student</Label>
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="sm"
+                onClick={() => setShowCreateStudent(!showCreateStudent)}
+                className="text-xs h-7"
+              >
+                <Plus className="mr-1 h-3 w-3" />
+                {showCreateStudent ? 'Select Existing' : 'Create New'}
+              </Button>
+            </div>
+            
+            {showCreateStudent ? (
+              <div className="space-y-3 rounded-lg border p-3 bg-muted/30">
+                <div className="space-y-1">
+                  <Label htmlFor="newEmail" className="text-xs">Email *</Label>
+                  <Input
+                    id="newEmail"
+                    type="email"
+                    placeholder="student@example.com"
+                    value={newStudentEmail}
+                    onChange={(e) => setNewStudentEmail(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="newName" className="text-xs">Full Name</Label>
+                  <Input
+                    id="newName"
+                    type="text"
+                    placeholder="John Doe"
+                    value={newStudentName}
+                    onChange={(e) => setNewStudentName(e.target.value)}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleCreateStudent}
+                  disabled={isCreatingStudent || !newStudentEmail.trim()}
+                  className="w-full"
+                >
+                  {isCreatingStudent ? (
+                    <>
+                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="mr-2 h-3 w-3" />
+                      Create Student Account
+                    </>
+                  )}
+                </Button>
+              </div>
+            ) : (
+              <Select value={selectedUser} onValueChange={setSelectedUser}>
+                <SelectTrigger>
+                  <SelectValue placeholder={profilesLoading ? "Loading..." : "Select a student"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {profiles?.map((profile: any) => (
+                    <SelectItem key={profile.user_id} value={profile.user_id}>
+                      {profile.full_name || 'Unnamed User'} 
+                      {profile.user_roles?.[0]?.role === 'admin' && ' (Admin)'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           <div className="space-y-2">
