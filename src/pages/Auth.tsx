@@ -4,29 +4,54 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import ccpqLogo from '@/assets/ccpq-logo.png';
 
 const Auth = () => {
   const [searchParams] = useSearchParams();
-  const [isSignUp, setIsSignUp] = useState(searchParams.get('mode') === 'signup');
+  const initialMode = searchParams.get('mode');
+  const [isSignUp, setIsSignUp] = useState(initialMode === 'signup');
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [isResetMode, setIsResetMode] = useState(initialMode === 'reset');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
-  const { user, signIn, signUp } = useAuth();
+  const { user, signIn, signUp, resetPassword } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (user) navigate('/dashboard');
   }, [user, navigate]);
 
+  useEffect(() => {
+    if (initialMode === 'reset') {
+      setIsResetMode(true);
+    }
+  }, [initialMode]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      if (isSignUp) {
+      if (isForgotPassword) {
+        const { error } = await resetPassword(email);
+        if (error) throw error;
+        toast.success('Password reset email sent! Check your inbox.');
+        setIsForgotPassword(false);
+      } else if (isResetMode) {
+        if (password !== confirmPassword) {
+          throw new Error('Passwords do not match');
+        }
+        const { error } = await supabase.auth.updateUser({ password });
+        if (error) throw error;
+        toast.success('Password updated successfully!');
+        setIsResetMode(false);
+        navigate('/auth');
+      } else if (isSignUp) {
         const { error } = await signUp(email, password, fullName);
         if (error) throw error;
         toast.success('Account created successfully!');
@@ -42,6 +67,24 @@ const Auth = () => {
     }
   };
 
+  const getTitle = () => {
+    if (isForgotPassword) return 'Reset Password';
+    if (isResetMode) return 'Set New Password';
+    return isSignUp ? 'Create Your Account' : 'Welcome Back';
+  };
+
+  const getSubtitle = () => {
+    if (isForgotPassword) return 'Enter your email to receive a reset link';
+    if (isResetMode) return 'Enter your new password below';
+    return isSignUp ? 'Start your learning journey today' : 'Sign in to continue learning';
+  };
+
+  const getButtonText = () => {
+    if (isForgotPassword) return 'Send Reset Link';
+    if (isResetMode) return 'Update Password';
+    return isSignUp ? 'Create Account' : 'Sign In';
+  };
+
   return (
     <div className="min-h-screen flex">
       {/* Left - Form */}
@@ -51,39 +94,78 @@ const Auth = () => {
             <img src={ccpqLogo} alt="CCPQ" className="h-12" />
           </Link>
 
-          <h1 className="text-3xl font-display font-bold mb-2">
-            {isSignUp ? 'Create Your Account' : 'Welcome Back'}
-          </h1>
-          <p className="text-muted-foreground mb-8">
-            {isSignUp ? 'Start your learning journey today' : 'Sign in to continue learning'}
-          </p>
+          {(isForgotPassword || isResetMode) && (
+            <button
+              onClick={() => {
+                setIsForgotPassword(false);
+                setIsResetMode(false);
+              }}
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Sign In
+            </button>
+          )}
+
+          <h1 className="text-3xl font-display font-bold mb-2">{getTitle()}</h1>
+          <p className="text-muted-foreground mb-8">{getSubtitle()}</p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {isSignUp && (
+            {isSignUp && !isForgotPassword && !isResetMode && (
               <div>
                 <label className="text-sm font-medium mb-2 block">Full Name</label>
                 <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your full name" required />
               </div>
             )}
-            <div>
-              <label className="text-sm font-medium mb-2 block">Email</label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 block">Password</label>
-              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} />
-            </div>
+            
+            {!isResetMode && (
+              <div>
+                <label className="text-sm font-medium mb-2 block">Email</label>
+                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
+              </div>
+            )}
+            
+            {!isForgotPassword && (
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  {isResetMode ? 'New Password' : 'Password'}
+                </label>
+                <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} />
+              </div>
+            )}
+
+            {isResetMode && (
+              <div>
+                <label className="text-sm font-medium mb-2 block">Confirm Password</label>
+                <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" required minLength={6} />
+              </div>
+            )}
+
+            {!isSignUp && !isForgotPassword && !isResetMode && (
+              <div className="text-right">
+                <button
+                  type="button"
+                  onClick={() => setIsForgotPassword(true)}
+                  className="text-sm text-accent hover:underline"
+                >
+                  Forgot password?
+                </button>
+              </div>
+            )}
+
             <Button type="submit" className="w-full bg-accent hover:bg-accent/90" disabled={loading}>
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : isSignUp ? 'Create Account' : 'Sign In'}
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : getButtonText()}
             </Button>
           </form>
 
-          <p className="text-center mt-6 text-sm text-muted-foreground">
-            {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
-            <button onClick={() => setIsSignUp(!isSignUp)} className="text-accent hover:underline font-medium">
-              {isSignUp ? 'Sign In' : 'Sign Up'}
-            </button>
-          </p>
+          {!isForgotPassword && !isResetMode && (
+            <p className="text-center mt-6 text-sm text-muted-foreground">
+              {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
+              <button onClick={() => setIsSignUp(!isSignUp)} className="text-accent hover:underline font-medium">
+                {isSignUp ? 'Sign In' : 'Sign Up'}
+              </button>
+            </p>
+          )}
         </div>
       </div>
 
